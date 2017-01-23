@@ -2,7 +2,7 @@ SHELL = /bin/sh
 
 CC = gcc
 CFLAGS = -Wall
-LDFLAGS =
+LDFLAGS = -lpthread
 EXEC = pa1.x
 SOURCES = pa1.c
 OBJECTS = $(SOURCES:%.c=%.o)
