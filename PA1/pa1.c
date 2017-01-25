@@ -4,7 +4,9 @@
  *
  * ...
  *
- * 2017 James Lee, Emmanuel Thiessen
+ * 2017
+ * Emmanuel Thiessen
+ * James Lee 1318125
  */
 
 #include <stdlib.h>
@@ -16,6 +18,7 @@ int i, N, L, M;
 char *S;
 int Stail = 0;
 pthread_mutex_t Smutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
 void guaranteedSleep(unsigned int s, unsigned int ns)
 {
@@ -25,8 +28,7 @@ void guaranteedSleep(unsigned int s, unsigned int ns)
 
 void *threadfunc(void* arg)
 {
-	char character = (char)arg;
-
+	char character = (char*)arg;
 	// Construct the string
 	while (Stail < M * L)
 	{
@@ -45,6 +47,9 @@ void *threadfunc(void* arg)
 
 	// Verify the selected property
 	// TODO
+	pthread_rwlock_rdlock(&rwlock);
+	printf("Hello from %c\n",character);
+	pthread_rwlock_unlock(&rwlock);
 
 	return NULL;
 }
@@ -84,15 +89,38 @@ int main(int argc, char ** argv)
 	// We'll assume any non-negative values for L and M are valid
 	if (L < 0) L = -L;
 	if (M < 0) M = -M;
-
-	// TODO: c0, c1, c2
-
+	
 	// Allocate space for the string on the stack (so we don't have to worry about deallocation/lack thereof)
 	char s[L*M];
 	S = s;
 
 	// Same for the thread handles
-	pthread_t threads[N];
+	long threadCount; // long in case of 64 bit system
+	int numThreads = N;
+	pthread_t* threads;
+	threads = malloc (numThreads * sizeof(pthread_t));
+	
+	// create the threads, let them run the function threadfunc once created,
+	// and pass the arguments from the input arguments.
+	// strings are actually character arrays, so to get the character 'b' from the arguments we 
+	// must do argv[argument index][0]
+	for (threadCount = 0; threadCount < N; threadCount++){
+		pthread_create(&threads[threadCount], NULL, threadfunc, argv[threadCount+5][0]);
+	}
+	printf("Hello from the main thread\n");
+	// join the threads once they complete 
+	for (threadCount = 0; threadCount < N; threadCount++){
+		pthread_join(threads[threadCount], NULL);
+	}
+	// free memory
+	free (threads);
 
+	// write the result to a text file
+	FILE *newFile = fopen("out.txt", "w");
+	fprintf(newFile, "Hello");
+	fclose(newFile);
+	
+	return 0;
 	// ...
+	
 }
