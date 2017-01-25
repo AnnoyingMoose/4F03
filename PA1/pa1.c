@@ -13,12 +13,15 @@
 #include <stdio.h>
 #include <time.h>
 #include <pthread.h>
+#include <string.h>
 
 int i, N, L, M;
 char *S;
 int Stail = 0;
 pthread_mutex_t Smutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
+int currentSegment = 0; // keep track of the next segment that needs to be checked, start at 1 for index 0 to 6
+int segmentsThatSatisfy = 0; // number of segments that satisfy the conditions
 
 void guaranteedSleep(unsigned int s, unsigned int ns)
 {
@@ -39,18 +42,48 @@ void *threadfunc(void* arg)
 
 		// Append the current thread's character
 		// (if the string isn't already fully built)
-		if (Stail < M * L)
+		if (Stail < M * L){
 			S[Stail++] = character;
+		}
 
 		pthread_mutex_unlock(&Smutex);
 	}
 
-	// Verify the selected property
-	// TODO
-	pthread_rwlock_rdlock(&rwlock);
+	// store the segment locally and then use write lock
+	char segment[L];
+	pthread_rwlock_wrlock(&rwlock);
+	int startIndex = currentSegment * L;
+	strncpy(segment, S + startIndex, L);
+	printf("%s\n", segment);
+	currentSegment++; // increase the current segment
 	printf("Hello from %c\n",character);
+	// after incrementation, unlock
 	pthread_rwlock_unlock(&rwlock);
-
+	
+	// Verify the selected property
+	int satisfies = 0;
+	// i = 0, occurences(c0) + occurences(c1) = occurences(c2)
+	if (i == 0){
+		satisfies = 1;
+	}
+	// i = 1, occurences(c0) + 2 x occurences(c1) = occurences(c2)
+	else if (i == 1){
+		
+	}
+	// i = 2, occurences(c0) x occurences(c1) = occurences(c2)
+	else if (i == 2){
+		
+	}
+	// i = 3, occurences(c0) - occurences(c1) = occurences(c2)
+	else if (i == 3){
+		
+	}
+	// if satisfies == 1 then get the lock again and update the value of segmentsThatSatisfy
+	if (satisfies){
+		pthread_rwlock_wrlock(&rwlock);
+		segmentsThatSatisfy++;
+		pthread_rwlock_unlock(&rwlock);
+	}
 	return NULL;
 }
 
@@ -115,9 +148,10 @@ int main(int argc, char ** argv)
 	// free memory
 	free (threads);
 
-	// write the result to a text file
+	// write the results to a text file
 	FILE *newFile = fopen("out.txt", "w");
-	fprintf(newFile, "Hello");
+	fputs(S, newFile);
+	fprintf(newFile, "\n%d",segmentsThatSatisfy);
 	fclose(newFile);
 	
 	return 0;
