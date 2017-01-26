@@ -4,9 +4,10 @@
  *
  * ...
  *
- * 2017
- * Emmanuel Thiessen
- * James Lee 1318125
+ * For SFWR ENG 4F03 PA1 (Winter 2017)
+ *
+ * Emmanuel Thiessen (thiessen@mcmaster.ca, MSID#000945053)
+ * James Lee            (leejr@mcmaster.ca, MSID#001318125)
  */
 
 #include <stdlib.h>
@@ -59,7 +60,7 @@ void *threadfunc(void* arg)
 	printf("Hello from %c\n",character);
 	// after incrementation, unlock
 	pthread_rwlock_unlock(&rwlock);
-	
+
 	// Verify the selected property
 	int satisfies = 0;
 	// i = 0, occurences(c0) + occurences(c1) = occurences(c2)
@@ -68,15 +69,15 @@ void *threadfunc(void* arg)
 	}
 	// i = 1, occurences(c0) + 2 x occurences(c1) = occurences(c2)
 	else if (i == 1){
-		
+
 	}
 	// i = 2, occurences(c0) x occurences(c1) = occurences(c2)
 	else if (i == 2){
-		
+
 	}
 	// i = 3, occurences(c0) - occurences(c1) = occurences(c2)
 	else if (i == 3){
-		
+
 	}
 	// if satisfies == 1 then get the lock again and update the value of segmentsThatSatisfy
 	if (satisfies){
@@ -122,7 +123,7 @@ int main(int argc, char ** argv)
 	// We'll assume any non-negative values for L and M are valid
 	if (L < 0) L = -L;
 	if (M < 0) M = -M;
-	
+
 	// Allocate space for the string on the stack (so we don't have to worry about deallocation/lack thereof)
 	char s[L*M];
 	S = s;
@@ -132,16 +133,16 @@ int main(int argc, char ** argv)
 	int numThreads = N;
 	pthread_t* threads;
 	threads = malloc (numThreads * sizeof(pthread_t));
-	
+
 	// create the threads, let them run the function threadfunc once created,
 	// and pass the arguments from the input arguments.
-	// strings are actually character arrays, so to get the character 'b' from the arguments we 
+	// strings are actually character arrays, so to get the character 'b' from the arguments we
 	// must do argv[argument index][0]
 	for (threadCount = 0; threadCount < N; threadCount++){
 		pthread_create(&threads[threadCount], NULL, threadfunc, argv[threadCount+5][0]);
 	}
 	printf("Hello from the main thread\n");
-	// join the threads once they complete 
+	// join the threads once they complete
 	for (threadCount = 0; threadCount < N; threadCount++){
 		pthread_join(threads[threadCount], NULL);
 	}
@@ -153,8 +154,8 @@ int main(int argc, char ** argv)
 	fputs(S, newFile);
 	fprintf(newFile, "\n%d",segmentsThatSatisfy);
 	fclose(newFile);
-	
+
 	return 0;
 	// ...
-	
+
 }
