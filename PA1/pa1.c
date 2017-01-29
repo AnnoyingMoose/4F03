@@ -23,6 +23,7 @@ pthread_mutex_t Smutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
 int currentSegment = 0; // keep track of the next segment that needs to be checked, start at 1 for index 0 to 6
 int segmentsThatSatisfy = 0; // number of segments that satisfy the conditions
+char c0, c1, c2;
 
 void guaranteedSleep(unsigned int s, unsigned int ns)
 {
@@ -42,10 +43,7 @@ void *threadfunc(void* arg)
 		pthread_mutex_lock(&Smutex);
 
 		// Append the current thread's character
-		// (if the string isn't already fully built)
-		if (Stail < M * L){
-			S[Stail++] = character;
-		}
+		S[Stail++] = character;
 
 		pthread_mutex_unlock(&Smutex);
 	}
@@ -57,27 +55,43 @@ void *threadfunc(void* arg)
 	strncpy(segment, S + startIndex, L);
 	printf("%s\n", segment);
 	currentSegment++; // increase the current segment
-	printf("Hello from %c\n",character);
 	// after incrementation, unlock
 	pthread_rwlock_unlock(&rwlock);
 
 	// Verify the selected property
 	int satisfies = 0;
+	int count[3] = { 0 };
+	for (int i = 0; i < L; i++){
+		if (segment[i]==c0){
+			count[0]++;
+		}
+		else if (segment[i]==c1){
+			count[1]++;
+		}
+		else if (segment[i]==c2){
+			count[2]++;
+		}
+	}
+	
 	// i = 0, occurences(c0) + occurences(c1) = occurences(c2)
 	if (i == 0){
-		satisfies = 1;
+		if (count[0] + count[1] == count[2])
+			satisfies = 1;
 	}
 	// i = 1, occurences(c0) + 2 x occurences(c1) = occurences(c2)
 	else if (i == 1){
-
+		if (count[0] + (2 * count[1]) == count[2])
+			satisfies = 1;
 	}
 	// i = 2, occurences(c0) x occurences(c1) = occurences(c2)
 	else if (i == 2){
-
+		if (count[0] * count[1] == count[2])
+			satisfies = 1;
 	}
 	// i = 3, occurences(c0) - occurences(c1) = occurences(c2)
 	else if (i == 3){
-
+		if (count[0] - count[1] == count[2])
+			satisfies = 1;
 	}
 	// if satisfies == 1 then get the lock again and update the value of segmentsThatSatisfy
 	if (satisfies){
@@ -107,6 +121,9 @@ int main(int argc, char ** argv)
 	N = atoi(argv[2]);
 	L = atoi(argv[3]);
 	M = atoi(argv[4]);
+	c0 = argv[5];
+	c1 = argv[6];
+	c2 = argv[7];
 
 	if (i < 0 || i > 3)
 	{
