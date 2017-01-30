@@ -33,38 +33,34 @@ pthread_mutex_t mx = PTHREAD_MUTEX_INITIALIZER;
 // The characters of interest during property checking
 char c0, c1, c2;
 
-/*
- * Sleep for s seconds and ns nanoseconds.
- * Is not interrupted by (benign) POSIX signals.
- * ns must be less than 1,000,000,000.
- */
-void guaranteedSleep(unsigned int s, unsigned int ns)
-{
-	struct timespec t = {s, ns};
-	while (t.tv_nsec > 0 || t.tv_sec > 0) nanosleep(&t, &t);
-}
-
 void *threadFunc(void* threadIndexArg)
 {
 	long threadIndex = (long)threadIndexArg;
 	char character = 'a' + threadIndex;
 	unsigned int rseed = (unsigned int)threadIndex;
+	struct timespec sleepDuration = {0, 0};
 
 	// Construct the string
 	while (Stail < numSegments * segmentLength)
 	{
 		// Sleep for 100~500 ms
-		guaranteedSleep(0, (unsigned int)(100000000.0 + rand_r(&rseed) * 400000000.0 / RAND_MAX));
+		sleepDuration.tv_nsec = (long int)(100000000.0 + rand_r(&rseed) * 400000000.0 / RAND_MAX);
+		//~ fprintf(stderr, "Thread %ld going to sleep for %ld ns\n", threadIndex, sleepDuration.tv_nsec);
+		nanosleep(&sleepDuration, NULL);
+		//~ fprintf(stderr, "Thread %ld waking up\n", threadIndex);
 
 		pthread_mutex_lock(&mx);
 
 		// Append the current thread's character
-		S[Stail++] = character;
+		if (Stail < numSegments * segmentLength)
+			S[Stail++] = character;
 
 		pthread_mutex_unlock(&mx);
 	}
 
-	for (int i = 0; i < numSegments / numThreads; ++i)
+	int i, j;
+
+	for (i = 0; i < numSegments / numThreads; ++i)
 	{
 		// Determine the starting index of the current segment
 		int segmentStart = segmentLength * (i * numThreads + threadIndex);
@@ -73,7 +69,7 @@ void *threadFunc(void* threadIndexArg)
 
 		int count[3] = { 0, 0, 0 };
 
-		for (int j = 0; j < segmentLength; ++j)
+		for (j = 0; j < segmentLength; ++j)
 		{
 			char c = S[segmentStart+j];
 
@@ -151,25 +147,26 @@ int main(int argc, char ** argv)
 
 	// Same for the thread handles
 	pthread_t threads[numThreads];
+	long threadIndex;
 
 	fprintf(stderr, "Creating threads... ");
 
 	// Initialize and run each thread
-	for (long threadIndex = 0; threadIndex < numThreads; ++threadIndex)
+	for (threadIndex = 0; threadIndex < numThreads; ++threadIndex)
 		pthread_create(&threads[threadIndex], NULL, threadFunc, (void*)threadIndex);
 
 	fprintf(stderr, "All threads created.\nWaiting for completion... ");
 
 	// Wait for the threads to complete
-	for (long threadIndex = 0; threadIndex < numThreads; ++threadIndex)
+	for (threadIndex = 0; threadIndex < numThreads; ++threadIndex)
 		pthread_join(threads[threadIndex], NULL);
 
 	fprintf(stderr, "All threads completed.\n");
 
 	// Output the results; both to the terminal and the text file "out.txt"
 	FILE *outFile = fopen("out.txt", "w");
-	fprintf(outFile, "%s\n%d", S, segmentsThatSatisfy);
-	fprintf(stdout,  "%s\n%d", S, segmentsThatSatisfy);
+	fprintf(outFile, "%s\n%d\n", S, segmentsThatSatisfy);
+	fprintf(stdout,  "%s\n%d\n", S, segmentsThatSatisfy);
 	fclose(outFile);
 
 	return 0;
