@@ -16,89 +16,93 @@
 #include <pthread.h>
 #include <string.h>
 
-int i, N, L, M;
+int propertyIndex, numThreads, segmentLength, numSegments;
+
+// The string to be built and analyzed, in its entirety
 char *S;
+
+// The first empty space in S (during the building phase)
 int Stail = 0;
-pthread_mutex_t Smutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
-int currentSegment = 0; // keep track of the next segment that needs to be checked, start at 1 for index 0 to 6
-int segmentsThatSatisfy = 0; // number of segments that satisfy the conditions
+
+// Number of segments that have the selected property
+int segmentsThatSatisfy = 0;
+
+// The mutex to be used when changing S or the segmentsThatSatisfy variable
+pthread_mutex_t mx = PTHREAD_MUTEX_INITIALIZER;
+
+// The characters of interest during property checking
 char c0, c1, c2;
 
+/*
+ * Sleep for s seconds and ns nanoseconds.
+ * Is not interrupted by (benign) POSIX signals.
+ * ns must be less than 1,000,000,000.
+ */
 void guaranteedSleep(unsigned int s, unsigned int ns)
 {
 	struct timespec t = {s, ns};
 	while (t.tv_nsec > 0 || t.tv_sec > 0) nanosleep(&t, &t);
 }
 
-void *threadfunc(void* arg)
+void *threadFunc(void* threadIndexArg)
 {
-	char character = (char*)arg;
+	long threadIndex = (long)threadIndexArg;
+	char character = 'a' + threadIndex;
+	unsigned int rseed = (unsigned int)threadIndex;
+
 	// Construct the string
-	while (Stail < M * L)
+	while (Stail < numSegments * segmentLength)
 	{
 		// Sleep for 100~500 ms
-		guaranteedSleep(0, 100000000 + rand() % 400000000);
+		guaranteedSleep(0, (unsigned int)(100000000.0 + rand_r(&rseed) * 400000000.0 / RAND_MAX));
 
-		pthread_mutex_lock(&Smutex);
+		pthread_mutex_lock(&mx);
 
 		// Append the current thread's character
 		S[Stail++] = character;
 
-		pthread_mutex_unlock(&Smutex);
+		pthread_mutex_unlock(&mx);
 	}
 
-	// store the segment locally and then use write lock
-	char segment[L];
-	pthread_rwlock_wrlock(&rwlock);
-	int startIndex = currentSegment * L;
-	strncpy(segment, S + startIndex, L);
-	printf("%s\n", segment);
-	currentSegment++; // increase the current segment
-	// after incrementation, unlock
-	pthread_rwlock_unlock(&rwlock);
+	for (int i = 0; i < numSegments / numThreads; ++i)
+	{
+		// Determine the starting index of the current segment
+		int segmentStart = segmentLength * (i * numThreads + threadIndex);
 
-	// Verify the selected property
-	int satisfies = 0;
-	int count[3] = { 0 };
-	for (int i = 0; i < L; i++){
-		if (segment[i]==c0){
-			count[0]++;
+		// Verify the selected property
+
+		int count[3] = { 0, 0, 0 };
+
+		for (int j = 0; j < segmentLength; ++j)
+		{
+			char c = S[segmentStart+j];
+
+			if (c == c0) ++count[0];
+			if (c == c1) ++count[1];
+			if (c == c2) ++count[2];
 		}
-		else if (segment[i]==c1){
-			count[1]++;
+
+		int satisfies = 0;
+
+		switch (propertyIndex)
+		{
+			case  0: satisfies = (count[0] + count[1]   == count[2]); break;
+			case  1: satisfies = (count[0] + count[1]*2 == count[2]); break;
+			case  2: satisfies = (count[0] * count[1]   == count[2]); break;
+			default: satisfies = (count[0] - count[1]   == count[2]); break;
 		}
-		else if (segment[i]==c2){
-			count[2]++;
+
+		if (satisfies)
+		{
+			// The current segment satisfies the given condition; increment the counter
+			// Also make sure no-one else is trying to do so at the same time
+
+			pthread_mutex_lock(&mx);
+			++segmentsThatSatisfy;
+			pthread_mutex_unlock(&mx);
 		}
 	}
-	
-	// i = 0, occurences(c0) + occurences(c1) = occurences(c2)
-	if (i == 0){
-		if (count[0] + count[1] == count[2])
-			satisfies = 1;
-	}
-	// i = 1, occurences(c0) + 2 x occurences(c1) = occurences(c2)
-	else if (i == 1){
-		if (count[0] + (2 * count[1]) == count[2])
-			satisfies = 1;
-	}
-	// i = 2, occurences(c0) x occurences(c1) = occurences(c2)
-	else if (i == 2){
-		if (count[0] * count[1] == count[2])
-			satisfies = 1;
-	}
-	// i = 3, occurences(c0) - occurences(c1) = occurences(c2)
-	else if (i == 3){
-		if (count[0] - count[1] == count[2])
-			satisfies = 1;
-	}
-	// if satisfies == 1 then get the lock again and update the value of segmentsThatSatisfy
-	if (satisfies){
-		pthread_rwlock_wrlock(&rwlock);
-		segmentsThatSatisfy++;
-		pthread_rwlock_unlock(&rwlock);
-	}
+
 	return NULL;
 }
 
@@ -117,62 +121,56 @@ int main(int argc, char ** argv)
 		exit(1);
 	}
 
-	i = atoi(argv[1]);
-	N = atoi(argv[2]);
-	L = atoi(argv[3]);
-	M = atoi(argv[4]);
-	c0 = argv[5];
-	c1 = argv[6];
-	c2 = argv[7];
+	propertyIndex = atoi(argv[1]);
+	numThreads    = atoi(argv[2]);
+	segmentLength = atoi(argv[3]);
+	numSegments   = atoi(argv[4]);
+	c0 = argv[5][0];
+	c1 = argv[6][0];
+	c2 = argv[7][0];
 
-	if (i < 0 || i > 3)
+	if (propertyIndex < 0 || propertyIndex > 3)
 	{
-		fprintf(stderr, "Error: property index must be in the range [0, 3] (got %i)", i);
+		fprintf(stderr, "Error: property index must be in the range [0, 3] (got %d)\n", propertyIndex);
 		exit(1);
 	}
 
-	if (N < 3 || N > 8)
+	if (numThreads < 3 || numThreads > 8)
 	{
-		fprintf(stderr, "Error: number of threads must be in the range [3, 8] (got %i)", N);
+		fprintf(stderr, "Error: number of threads must be in the range [3, 8] (got %d)\n", numThreads);
 		exit(1);
 	}
 
 	// We'll assume any non-negative values for L and M are valid
-	if (L < 0) L = -L;
-	if (M < 0) M = -M;
+	if (segmentLength < 0) segmentLength = -segmentLength;
+	if   (numSegments < 0)   numSegments = -numSegments;
 
 	// Allocate space for the string on the stack (so we don't have to worry about deallocation/lack thereof)
-	char s[L*M];
+	char s[segmentLength * numSegments];
 	S = s;
 
 	// Same for the thread handles
-	long threadCount; // long in case of 64 bit system
-	int numThreads = N;
-	pthread_t* threads;
-	threads = malloc (numThreads * sizeof(pthread_t));
+	pthread_t threads[numThreads];
 
-	// create the threads, let them run the function threadfunc once created,
-	// and pass the arguments from the input arguments.
-	// strings are actually character arrays, so to get the character 'b' from the arguments we
-	// must do argv[argument index][0]
-	for (threadCount = 0; threadCount < N; threadCount++){
-		pthread_create(&threads[threadCount], NULL, threadfunc, argv[threadCount+5][0]);
-	}
-	printf("Hello from the main thread\n");
-	// join the threads once they complete
-	for (threadCount = 0; threadCount < N; threadCount++){
-		pthread_join(threads[threadCount], NULL);
-	}
-	// free memory
-	free (threads);
+	fprintf(stderr, "Creating threads... ");
 
-	// write the results to a text file
-	FILE *newFile = fopen("out.txt", "w");
-	fputs(S, newFile);
-	fprintf(newFile, "\n%d",segmentsThatSatisfy);
-	fclose(newFile);
+	// Initialize and run each thread
+	for (long threadIndex = 0; threadIndex < numThreads; ++threadIndex)
+		pthread_create(&threads[threadIndex], NULL, threadFunc, (void*)threadIndex);
+
+	fprintf(stderr, "All threads created.\nWaiting for completion... ");
+
+	// Wait for the threads to complete
+	for (long threadIndex = 0; threadIndex < numThreads; ++threadIndex)
+		pthread_join(threads[threadIndex], NULL);
+
+	fprintf(stderr, "All threads completed.\n");
+
+	// Output the results; both to the terminal and the text file "out.txt"
+	FILE *outFile = fopen("out.txt", "w");
+	fprintf(outFile, "%s\n%d", S, segmentsThatSatisfy);
+	fprintf(stdout,  "%s\n%d", S, segmentsThatSatisfy);
+	fclose(outFile);
 
 	return 0;
-	// ...
-
 }

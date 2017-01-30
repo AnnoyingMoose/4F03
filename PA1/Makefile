@@ -23,4 +23,4 @@ $(EXEC): $(OBJECTS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJECTS) $(EXEC)
+	rm -f $(OBJECTS) $(EXEC) out.txt
