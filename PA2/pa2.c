@@ -25,7 +25,7 @@ void threadFunc(int propertyIndex, int segmentLength, int numSegments, char c0, 
 	unsigned int rseed = (unsigned int)omp_get_thread_num();
 	struct timespec sleepDuration = {0, 0};
 
-	fprintf(stderr, "Thread #%d beginning string construction\n", omp_get_thread_num());
+	fprintf(stderr, "Thread %d beginning string construction\n", omp_get_thread_num());
 
 	// Construct the string
 	while (*Stail < numSegments * segmentLength)
@@ -39,18 +39,18 @@ void threadFunc(int propertyIndex, int segmentLength, int numSegments, char c0, 
 		// Append the current thread's character
 		#pragma omp critical
 		if (*Stail < numSegments * segmentLength)
-			S[*Stail++] = character;
+			S[(*Stail)++] = character;
 	}
 
 	int i, j;
 
-	fprintf(stderr, "Thread #%d beginning property checking\n", omp_get_thread_num());
+	fprintf(stderr, "Thread %d beginning property checking\n", omp_get_thread_num());
 
 	for (i = 0; i < numSegments / omp_get_num_threads(); ++i)
 	{
 		// Determine the starting index of the current segment
 		int segmentStart = segmentLength * (i * omp_get_num_threads() + omp_get_thread_num());
-		fprintf(stderr, "Thread #%d checking segment %d\n", omp_get_thread_num(), segmentStart);
+		fprintf(stderr, "Thread %d checking segment %d\n", omp_get_thread_num(), segmentStart);
 
 		// Verify the selected property
 
@@ -81,11 +81,11 @@ void threadFunc(int propertyIndex, int segmentLength, int numSegments, char c0, 
 			// Also make sure no-one else is trying to do so at the same time
 
 			#pragma omp critical
-			++*segmentsThatSatisfy;
+			++(*segmentsThatSatisfy);
 		}
 	}
 
-	fprintf(stderr, "Thread #%d finished.\n", omp_get_thread_num());
+	fprintf(stderr, "Thread %d finished.\n", omp_get_thread_num());
 }
 
 int main(int argc, char ** argv)
