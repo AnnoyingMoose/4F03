@@ -19,27 +19,102 @@
 #define omp_get_num_threads() 1
 #endif
 
+// global variables to keep track of character numbers
+int* numc0;
+int* numc1;
+int* numc2;
+int cRequired = 0;
+
 void threadFunc(int propertyIndex, int segmentLength, int numSegments, char c0, char c1, char c2, char *S, int *Stail, int *segmentsThatSatisfy)
 {
 	char character = 'a' + omp_get_thread_num();
 	unsigned int rseed = (unsigned int)omp_get_thread_num();
 	struct timespec sleepDuration = {0, 0};
 
-	fprintf(stderr, "Thread %d beginning string construction\n", omp_get_thread_num());
+	//fprintf(stderr, "Thread %d beginning string construction\n", omp_get_thread_num());
 
 	// Construct the string
 	while (*Stail < numSegments * segmentLength)
 	{
 		// Sleep for 100~500 ms
 		sleepDuration.tv_nsec = (long int)(100000000.0 + rand_r(&rseed) * 400000000.0 / RAND_MAX);
-		fprintf(stderr, "Thread %d going to sleep for %ld ns\n", omp_get_thread_num(), sleepDuration.tv_nsec);
+		//fprintf(stderr, "Thread %d going to sleep for %ld ns\n", omp_get_thread_num(), sleepDuration.tv_nsec);
 		nanosleep(&sleepDuration, NULL);
-		fprintf(stderr, "Thread %d waking up\n", omp_get_thread_num());
+		//fprintf(stderr, "Thread %d waking up\n", omp_get_thread_num());
 
 		// Append the current thread's character
 		#pragma omp critical
-		if (*Stail < numSegments * segmentLength)
+		if (*Stail < numSegments * segmentLength){
+			int currentSegment = *Stail/segmentLength;
+			int currentIndex = *Stail;
+			// if new segment then reset cRequired
+			if (currentIndex%segmentLength==0)
+				cRequired = 0;
+			
+			// add to the count of the character
+			if (character == c0){
+				numc0[currentSegment] ++;
+				cRequired++;
+			}
+			else if (character == c1){
+				numc1[currentSegment] ++;	
+				cRequired+=2;				
+			}
+			else if (character == c2){
+				numc2[currentSegment] ++;
+				cRequired--;
+			}
 			S[(*Stail)++] = character;
+			fprintf(stderr, "Add %c, tail at %d, cRequired = %d\n", character, *Stail, cRequired);
+			
+			int delete = 0;
+			switch(propertyIndex){
+				case 0:
+					// numc0 + numc1 = numc2
+					// this case is solved
+					if (numc0[currentSegment] + numc1[currentSegment] > numc2[currentSegment])
+						delete = 1;
+					break;
+				case 1:
+					// numc0 + 2*numc1 = numc2
+					// todo
+					if (numc0[currentSegment] + 2*numc1[currentSegment] > numc2[currentSegment] ||
+						cRequired > segmentLength-((currentIndex+1)%segmentLength)
+					)
+						delete = 1; 
+					break;
+				case 2:
+					// numc0 * numc1 = numc2
+					// to do
+					if (numc0[currentSegment] * numc1[currentSegment] != numc2[currentSegment])
+						delete = 1;
+					break;
+				case 3:
+					// numc0 - numc1 = numc2
+					// this case is solved
+					if (numc0[currentSegment] < numc1[currentSegment] + numc2[currentSegment]
+					|| ((currentIndex+1) % segmentLength==0 && numc0[currentSegment] > numc1[currentSegment] + numc2[currentSegment]))
+						delete = 1;
+					break;					
+			}
+			// if delete is true then delete the segment and reset
+			if (delete){
+				if (character == c0){
+					numc0[currentSegment]--;
+					cRequired--;
+				}
+				else if (character == c1){
+					numc1[currentSegment]--;
+					cRequired-=2;
+				}
+				else if (character == c2){
+					numc2[currentSegment]--;
+					cRequired++;					
+				}
+				(*Stail)--;
+				fprintf(stderr, "Delete %c, tail at %d\n", character, *Stail);
+			}
+		}
 	}
 
 	int i, j;
@@ -134,6 +209,17 @@ int main(int argc, char ** argv)
 	int Stail = 0; // The first empty space in S (during the building phase)
 	int segmentsThatSatisfy = 0; // Number of segments that have the selected property
 
+	// variables that keep track of number of each character in each segment
+	numc0 = malloc (numSegments);
+	numc1 = malloc (numSegments);
+	numc2 = malloc (numSegments);
+	// set them to 0
+	for (int i = 0; i < numSegments; i++){
+		numc0[i] = 0;
+		numc1[i] = 0;
+		numc2[i] = 0;
+	}
+
 	fprintf(stderr, "Starting...\n");
 
 	#pragma omp parallel num_threads(numThreads)
@@ -145,5 +231,15 @@ int main(int argc, char ** argv)
 	fprintf(stdout,  "%s\n%d\n", S, segmentsThatSatisfy);
 	fclose(outFile);
 
+	for (int i = 0; i < numSegments; i++){
+		fprintf(stdout,  "Numc0 segment %d has %d\n", i, numc0[i]);
+	}
+	for (int i = 0; i < numSegments; i++){
+		fprintf(stdout,  "Numc1 segment %d has %d\n", i, numc1[i]);
+	}
+	for (int i = 0; i < numSegments; i++){
+		fprintf(stdout,  "Numc2 segment %d has %d\n", i, numc2[i]);
+	}
+	
 	return 0;
 }
