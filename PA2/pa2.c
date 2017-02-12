@@ -23,15 +23,56 @@
 int* numc0;
 int* numc1;
 int* numc2;
-int cRequired = 0;
+int aRequired = -1;
+int bRequired = -1;
+int cRequired = -1;
+int isItPossible = 1;
+
+// a function that checks to see if the property index is possible to enforce
+int isPossible(int propertyIndex, int segmentLength){
+	switch(propertyIndex){
+		case 1:
+			// numc0 + 2*numc1 = numc2
+			// see if its possible to do
+			for (int i = 0; i < segmentLength; i++){
+				for (int j = 0; j < segmentLength; j++){
+					if (i + 2*j == segmentLength - i - j){
+						aRequired = i;
+						bRequired = j;
+						cRequired = segmentLength - i - j;
+						return 1;
+					}
+				}
+			}
+			// return not possible
+			return 0;
+			break;
+		case 2:
+			// numc0 * numc1 = numc2
+			// see if its possible to do
+			for (int i = 0; i < segmentLength; i++){
+				for (int j = 0; j < segmentLength; j++){
+					if (i*j == segmentLength - i - j){
+						aRequired = i;
+						bRequired = j;
+						cRequired = segmentLength - i - j;
+						return 1;
+					}
+				}
+			}
+			return 0;
+			break;				
+	}
+	// cases 0 and 3 can be checked during runtime
+	return 1;
+}
+
 
 void threadFunc(int propertyIndex, int segmentLength, int numSegments, char c0, char c1, char c2, char *S, int *Stail, int *segmentsThatSatisfy)
 {
 	char character = 'a' + omp_get_thread_num();
 	unsigned int rseed = (unsigned int)omp_get_thread_num();
 	struct timespec sleepDuration = {0, 0};
-
-	//fprintf(stderr, "Thread %d beginning string construction\n", omp_get_thread_num());
 
 	// Construct the string
 	while (*Stail < numSegments * segmentLength)
@@ -47,51 +88,52 @@ void threadFunc(int propertyIndex, int segmentLength, int numSegments, char c0, 
 		if (*Stail < numSegments * segmentLength){
 			int currentSegment = *Stail/segmentLength;
 			int currentIndex = *Stail;
-			// if new segment then reset cRequired
-			if (currentIndex%segmentLength==0)
-				cRequired = 0;
-			
-			// add to the count of the character
+
+			// add to the count of the characters
 			if (character == c0){
 				numc0[currentSegment] ++;
-				cRequired++;
 			}
 			else if (character == c1){
-				numc1[currentSegment] ++;	
-				cRequired+=2;				
+				numc1[currentSegment] ++;				
 			}
 			else if (character == c2){
 				numc2[currentSegment] ++;
-				cRequired--;
 			}
+			
 			S[(*Stail)++] = character;
-			fprintf(stderr, "Add %c, tail at %d, cRequired = %d\n", character, *Stail, cRequired);
+			//fprintf(stderr, "Add %c, tail at %d\n", character, *Stail);
 			
 			int delete = 0;
+			// enforce propertys
 			switch(propertyIndex){
 				case 0:
 					// numc0 + numc1 = numc2
-					// this case is solved
 					if (numc0[currentSegment] + numc1[currentSegment] > numc2[currentSegment])
 						delete = 1;
 					break;
 				case 1:
 					// numc0 + 2*numc1 = numc2
-					// todo
-					if (numc0[currentSegment] + 2*numc1[currentSegment] > numc2[currentSegment] ||
-						cRequired > segmentLength-((currentIndex+1)%segmentLength)
-					)
-						delete = 1; 
+					// if an answer is possible then do it
+					if (isItPossible){
+						if (numc0[currentSegment] > aRequired || numc1[currentSegment] > bRequired || numc2[currentSegment] > cRequired)
+							delete = 1; 
+					}
+					else{
+						// do nothing, string can be whatever
+					}
 					break;
 				case 2:
 					// numc0 * numc1 = numc2
-					// to do
-					if (numc0[currentSegment] * numc1[currentSegment] != numc2[currentSegment])
-						delete = 1;
+					if (isItPossible){
+						if (numc0[currentSegment] > aRequired || numc1[currentSegment] > bRequired || numc2[currentSegment] > cRequired)
+							delete = 1; 
+					}
+					else{
+						// do nothing, string can be whatever
+					}
 					break;
 				case 3:
 					// numc0 - numc1 = numc2
-					// this case is solved
 					if (numc0[currentSegment] < numc1[currentSegment] + numc2[currentSegment]
 					|| ((currentIndex+1) % segmentLength==0 && numc0[currentSegment] > numc1[currentSegment] + numc2[currentSegment]))
 						delete = 1;
@@ -101,31 +143,29 @@ void threadFunc(int propertyIndex, int segmentLength, int numSegments, char c0, 
 			if (delete){
 				if (character == c0){
 					numc0[currentSegment]--;
-					cRequired--;
 				}
 				else if (character == c1){
 					numc1[currentSegment]--;
-					cRequired-=2;
 				}
 				else if (character == c2){
-					numc2[currentSegment]--;
-					cRequired++;					
+					numc2[currentSegment]--;				
 				}
+				// move the tail back
 				(*Stail)--;
-				fprintf(stderr, "Delete %c, tail at %d\n", character, *Stail);
+				//fprintf(stderr, "Delete %c, tail at %d\n", character, *Stail);
 			}
 		}
 	}
 
 	int i, j;
 
-	fprintf(stderr, "Thread %d beginning property checking\n", omp_get_thread_num());
+	//fprintf(stderr, "Thread %d beginning property checking\n", omp_get_thread_num());
 
 	for (i = 0; i < numSegments / omp_get_num_threads(); ++i)
 	{
 		// Determine the starting index of the current segment
 		int segmentStart = segmentLength * (i * omp_get_num_threads() + omp_get_thread_num());
-		fprintf(stderr, "Thread %d checking segment %d\n", omp_get_thread_num(), segmentStart);
+		//fprintf(stderr, "Thread %d checking segment %d\n", omp_get_thread_num(), segmentStart);
 
 		// Verify the selected property
 
@@ -160,7 +200,7 @@ void threadFunc(int propertyIndex, int segmentLength, int numSegments, char c0, 
 		}
 	}
 
-	fprintf(stderr, "Thread %d finished.\n", omp_get_thread_num());
+	//fprintf(stderr, "Thread %d finished.\n", omp_get_thread_num());
 }
 
 int main(int argc, char ** argv)
@@ -219,8 +259,10 @@ int main(int argc, char ** argv)
 		numc1[i] = 0;
 		numc2[i] = 0;
 	}
+	isItPossible = isPossible(propertyIndex, segmentLength);
+	//fprintf(stderr, "c0: %i c1: %i c2: %i\n", aRequired, bRequired, cRequired);
 
-	fprintf(stderr, "Starting...\n");
+	//fprintf(stderr, "Starting...\n");
 
 	#pragma omp parallel num_threads(numThreads)
 	threadFunc(propertyIndex, segmentLength, numSegments, c0, c1, c2, S, &Stail, &segmentsThatSatisfy);
@@ -228,9 +270,9 @@ int main(int argc, char ** argv)
 	// Output the results; both to the terminal and the text file "out.txt"
 	FILE *outFile = fopen("out.txt", "w");
 	fprintf(outFile, "%s\n%d\n", S, segmentsThatSatisfy);
-	fprintf(stdout,  "%s\n%d\n", S, segmentsThatSatisfy);
+	//fprintf(stdout,  "%s\n%d\n", S, segmentsThatSatisfy);
 	fclose(outFile);
-
+	/*
 	for (int i = 0; i < numSegments; i++){
 		fprintf(stdout,  "Numc0 segment %d has %d\n", i, numc0[i]);
 	}
@@ -239,7 +281,7 @@ int main(int argc, char ** argv)
 	}
 	for (int i = 0; i < numSegments; i++){
 		fprintf(stdout,  "Numc2 segment %d has %d\n", i, numc2[i]);
-	}
+	}*/
 	
 	return 0;
 }
