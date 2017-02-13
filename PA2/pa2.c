@@ -19,71 +19,77 @@
 #define omp_get_num_threads() 1
 #endif
 
+int *numc0, *numc1, *numc2, *numNC; // Arrays relating segments to character counts
 
-int
-	*numc0, *numc1, *numc2, // Arrays relating segments to character counts
-	c0Required = -1,
-	c1Required = -1,
-	c2Required = -1;
-
-// a function that checks to see if the property index is possible to enforce
-int isPossible(int propertyIndex, int segmentLength)
+int property(int index, int nc0, int nc1, int nc2)
 {
-	int nc0, nc1, nc2;
-
-	switch (propertyIndex)
+	switch (index)
 	{
-	case 1:
-		// numc0 + 2*numc1 = numc2
-		// see if its possible to do
-		for (nc0 = 0; nc0 < segmentLength; nc0++)
-		for (nc1 = 0; nc1 < segmentLength; nc1++)
-		{
-			nc2 = segmentLength - nc0 - nc1;
-
-			if (nc0 + 2*nc1 == nc2)
-			{
-				c0Required = nc0;
-				c1Required = nc1;
-				c2Required = nc2;
-				return 1;
-			}
-		}
-
-		// return not possible
-		return 0;
-
-	case 2:
-		// numc0 * numc1 = numc2
-		// see if its possible to do
-		for (nc0 = 0; nc0 < segmentLength; nc0++)
-		for (nc1 = 0; nc1 < segmentLength; nc1++)
-		{
-			nc2 = segmentLength - nc0 - nc1;
-
-			if (nc0 * nc1 == nc2)
-			{
-				c0Required = nc0;
-				c1Required = nc1;
-				c2Required = nc2;
-				return 1;
-			}
-		}
-
-		return 0;
-
-	default:
-		// cases 0 and 3 can be checked during runtime
-		return 1;
+	case  0: return nc0 + nc1   == nc2;
+	case  1: return nc0 + nc1*2 == nc2;
+	case  2: return nc0 * nc1   == nc2;
+	case  3: return nc0 - nc1   == nc2;
+	default: return 0;
 	}
+}
+
+/**
+ * Check if a property can be satisfied for a segment.
+ *
+ * @param propertyIndex: The index of the property to check
+ * @param segmentLength: The length of the segment
+ * @param nc0: The number of character c0 already in the segment
+ * @param nc1: The number of character c1 already in the segment
+ * @param nc2: The number of character c2 already in the segment
+ * @param noncrit: The number of other characters already in the segment
+ *
+ * @return 1 if the property may yet be satisfied; 0 otherwise
+ */
+int isPossible(int propertyIndex, int segmentLength, int nc0, int nc1, int nc2, int noncrit)
+{
+	int tc0, tc1, tc2;
+
+	for (tc0 = nc0; tc0 + nc1 + nc2 + noncrit <= segmentLength; ++tc0)
+	for (tc1 = nc1; tc0 + tc1 + nc2 + noncrit <= segmentLength; ++tc1)
+	for (tc2 = nc2; tc0 + tc1 + tc2 + noncrit <= segmentLength; ++tc2)
+	{
+		if (property(propertyIndex, tc0, tc1, tc2)) return 1;
+	}
+
+	return 0;
+}
+
+/**
+ * Check if a property can be satisfied for a segment using only critical characters.
+ *
+ * @param propertyIndex: The index of the property to check
+ * @param segmentLength: The length of the segment
+ * @param nc0: The number of character c0 already in the segment
+ * @param nc1: The number of character c1 already in the segment
+ * @param nc2: The number of character c2 already in the segment
+ *
+ * @return 1 if the property may yet be satisfied; 0 otherwise
+ */
+int isPossibleWithoutNC(int propertyIndex, int segmentLength, int nc0, int nc1, int nc2)
+{
+	int tc0, tc1, tc2;
+
+	for (tc0 = nc0; tc0 + nc1 + nc2 <= segmentLength; ++tc0)
+	for (tc1 = nc1; tc0 + tc1 + nc2 <= segmentLength; ++tc1)
+	{
+		tc2 = segmentLength - tc0 - tc1;
+		if (property(propertyIndex, tc0, tc1, tc2)) return 1;
+	}
+
+	return 0;
 }
 
 void threadFunc(int propertyIndex, int segmentLength, int numSegments, char c0, char c1, char c2, char *S, int *Stail, int *segmentsThatSatisfy)
 {
-	char character = 'a' + omp_get_thread_num();
+	char chr = 'a' + omp_get_thread_num();
 	unsigned int rseed = (unsigned int)omp_get_thread_num();
 	struct timespec sleepDuration = {0, 0};
-	int segmentStart, currentSegment, currentIndex, undo;
+	int i, j, segSt, segCurr;
 
 	// Construct the string
 	while (*Stail < numSegments * segmentLength)
@@ -95,77 +101,45 @@ void threadFunc(int propertyIndex, int segmentLength, int numSegments, char c0, 
 		nanosleep(&sleepDuration, NULL);
 		//~ fprintf(stderr, "Thread %d waking up\n", omp_get_thread_num());
 
-		// Append the current thread's character
+		// Check if we can append the current thread's character
+		// without violating the chosen property, and do so if so.
 		#pragma omp critical
 		if (*Stail < numSegments * segmentLength)
 		{
-			currentSegment = *Stail / segmentLength;
-			currentIndex = *Stail;
+			segCurr = *Stail / segmentLength;
 
-			// Add to the character counts
-			if (character == c0)
-				numc0[currentSegment]++;
-			else if (character == c1)
-				numc1[currentSegment]++;
-			else if (character == c2)
-				numc2[currentSegment]++;
+			// Add to the character count:
+			     if (chr == c0) ++numc0[segCurr];
+			else if (chr == c1) ++numc1[segCurr];
+			else if (chr == c2) ++numc2[segCurr];
+			else                ++numNC[segCurr];
 
-			S[*Stail] = character;
-
-			undo = 0;
-
-			// Enforce properties
-			switch (propertyIndex)
+			if (omp_get_num_threads() == 3 &&
+			    isPossibleWithoutNC(propertyIndex, segmentLength, numc0[segCurr], numc1[segCurr], numc2[segCurr]) ||
+			    isPossible         (propertyIndex, segmentLength, numc0[segCurr], numc1[segCurr], numc2[segCurr], numNC[segCurr]))
 			{
-			case 0: // numc0 + numc1 = numc2
-				if (numc0[currentSegment] + numc1[currentSegment] > numc2[currentSegment])
-					undo = 1;
-
-				break;
-
-			case 1: // numc0 + 2*numc1 = numc2
-			case 2: // numc0 * numc1 = numc2
-				if (numc0[currentSegment] > c0Required || numc1[currentSegment] > c1Required || numc2[currentSegment] > c2Required)
-					undo = 1;
-
-				break;
-
-			case 3: // numc0 - numc1 = numc2
-				if (numc0[currentSegment] < numc1[currentSegment] + numc2[currentSegment] ||
-				    ((currentIndex+1) % segmentLength == 0 && numc0[currentSegment] > numc1[currentSegment] + numc2[currentSegment]))
-					undo = 1;
-
-				break;
-			}
-
-			if (undo)
-			{
-				if (character == c0)
-					numc0[currentSegment]--;
-				else if (character == c1)
-					numc1[currentSegment]--;
-				else if (character == c2)
-					numc2[currentSegment]--;
-
-				//~ fprintf(stderr, "Delete %c, tail at %d\n", character, *Stail);
+				S[(*Stail)++] = chr;
 			}
 			else
 			{
-				++(*Stail);
+				// Whoops, we can't add this character after all.
+				// Undo the increment to the character count:
+				     if (chr == c0) --numc0[segCurr];
+				else if (chr == c1) --numc1[segCurr];
+				else if (chr == c2) --numc2[segCurr];
+				else                --numNC[segCurr];
 			}
 		}
 	}
 
-	int i, j;
-
-	//fprintf(stderr, "Thread %d beginning property checking\n", omp_get_thread_num());
+	//~ fprintf(stderr, "Thread %d beginning property checking\n", omp_get_thread_num());
 
 	for (i = 0; i < numSegments / omp_get_num_threads(); ++i)
 	{
 		// Determine the starting index of the current segment
-		segmentStart = segmentLength * (i * omp_get_num_threads() + omp_get_thread_num());
+		segSt = segmentLength * (i * omp_get_num_threads() + omp_get_thread_num());
 
-		//~ fprintf(stderr, "Thread %d checking segment %d\n", omp_get_thread_num(), segmentStart);
+		//~ fprintf(stderr, "Thread %d checking segment %d\n", omp_get_thread_num(), segSt);
 
 		// Verify the selected property
 
@@ -173,24 +147,14 @@ void threadFunc(int propertyIndex, int segmentLength, int numSegments, char c0, 
 
 		for (j = 0; j < segmentLength; ++j)
 		{
-			char c = S[segmentStart+j];
+			char c = S[segSt+j];
 
 			if (c == c0) ++count[0];
 			if (c == c1) ++count[1];
 			if (c == c2) ++count[2];
 		}
 
-		int satisfies = 0;
-
-		switch (propertyIndex)
-		{
-			case  0: satisfies = (count[0] + count[1]   == count[2]); break;
-			case  1: satisfies = (count[0] + count[1]*2 == count[2]); break;
-			case  2: satisfies = (count[0] * count[1]   == count[2]); break;
-			default: satisfies = (count[0] - count[1]   == count[2]); break;
-		}
-
-		if (satisfies)
+		if (property(propertyIndex, count[0], count[1], count[2]))
 		{
 			// The current segment satisfies the given condition; increment the counter
 			// Also make sure no-one else is trying to do so at the same time
@@ -245,7 +209,9 @@ int main(int argc, char ** argv)
 	if (segmentLength < 0) segmentLength = -segmentLength;
 	if   (numSegments < 0)   numSegments = -numSegments;
 
-	if (!isPossible(propertyIndex, segmentLength))
+	if (!(numThreads == 3 &&
+	    isPossibleWithoutNC(propertyIndex, segmentLength, 0, 0, 0) ||
+	    isPossible         (propertyIndex, segmentLength, 0, 0, 0, 0)))
 	{
 		fprintf(stderr, "Error: selected property not possible for selected segment length.\n");
 		exit(1);
@@ -259,8 +225,7 @@ int main(int argc, char ** argv)
 	numc0 = calloc(numSegments, sizeof(int));
 	numc1 = calloc(numSegments, sizeof(int));
 	numc2 = calloc(numSegments, sizeof(int));
-
-	//~ fprintf(stderr, "c0: %i c1: %i c2: %i\n", c0Required, c1Required, c2Required);
+	numNC = calloc(numSegments, sizeof(int));
 
 	//~ fprintf(stderr, "Starting...\n");
 
@@ -278,12 +243,13 @@ int main(int argc, char ** argv)
 	for (i = 0; i < numSegments; i++)
 	{
 		fprintf(stderr, "Segment %d has the following character counts:\n", i);
-		fprintf(stderr, "c0: %d\nc1: %d\nc2: %d\n\n", numc0[i], numc1[i], numc2[i]);
+		fprintf(stderr, "c0: %d\nc1: %d\nc2: %d\nOther: %d\n\n", numc0[i], numc1[i], numc2[i], numNC[i]);
 	}
 
 	free(numc0);
 	free(numc1);
 	free(numc2);
+	free(numNC);
 
 	return 0;
 }
