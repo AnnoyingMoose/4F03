@@ -91,15 +91,13 @@ void threadFunc(int propertyIndex, int segmentLength, int numSegments, char c0, 
 	struct timespec sleepDuration = {0, 0};
 	int i, j, segSt, segCurr;
 
-	// Construct the string
+	// Construction phase
+
 	while (*Stail < numSegments * segmentLength)
 	{
 		// Sleep for 100~500 ms
 		sleepDuration.tv_nsec = (long int)(100000000.0 + rand_r(&rseed) * 400000000.0 / RAND_MAX);
-
-		//~ fprintf(stderr, "Thread %d going to sleep for %ld ns\n", omp_get_thread_num(), sleepDuration.tv_nsec);
 		nanosleep(&sleepDuration, NULL);
-		//~ fprintf(stderr, "Thread %d waking up\n", omp_get_thread_num());
 
 		// Check if we can append the current thread's character
 		// without violating the chosen property, and do so if so.
@@ -114,11 +112,12 @@ void threadFunc(int propertyIndex, int segmentLength, int numSegments, char c0, 
 			else if (chr == c2) ++numc2[segCurr];
 			else                ++numNC[segCurr];
 
-			if (omp_get_num_threads() == 3 &&
-			    isPossibleWithoutNC(propertyIndex, segmentLength, numc0[segCurr], numc1[segCurr], numc2[segCurr]) ||
+			if (omp_get_num_threads() == 3 ?
+			    isPossibleWithoutNC(propertyIndex, segmentLength, numc0[segCurr], numc1[segCurr], numc2[segCurr]) :
 			    isPossible         (propertyIndex, segmentLength, numc0[segCurr], numc1[segCurr], numc2[segCurr], numNC[segCurr]))
 			{
 				S[(*Stail)++] = chr;
+				printf("%c", chr);
 			}
 			else
 			{
@@ -132,14 +131,12 @@ void threadFunc(int propertyIndex, int segmentLength, int numSegments, char c0, 
 		}
 	}
 
-	//~ fprintf(stderr, "Thread %d beginning property checking\n", omp_get_thread_num());
+	// Property check phase
 
 	for (i = 0; i < numSegments / omp_get_num_threads(); ++i)
 	{
 		// Determine the starting index of the current segment
 		segSt = segmentLength * (i * omp_get_num_threads() + omp_get_thread_num());
-
-		//~ fprintf(stderr, "Thread %d checking segment %d\n", omp_get_thread_num(), segSt);
 
 		// Verify the selected property
 
@@ -209,9 +206,9 @@ int main(int argc, char ** argv)
 	if (segmentLength < 0) segmentLength = -segmentLength;
 	if   (numSegments < 0)   numSegments = -numSegments;
 
-	if (!(numThreads == 3 &&
-	    isPossibleWithoutNC(propertyIndex, segmentLength, 0, 0, 0) ||
-	    isPossible         (propertyIndex, segmentLength, 0, 0, 0, 0)))
+	if (numThreads == 3 ?
+	    !isPossibleWithoutNC(propertyIndex, segmentLength, 0, 0, 0) :
+	    !isPossible         (propertyIndex, segmentLength, 0, 0, 0, 0))
 	{
 		fprintf(stderr, "Error: selected property not possible for selected segment length.\n");
 		exit(1);
@@ -232,19 +229,20 @@ int main(int argc, char ** argv)
 	#pragma omp parallel num_threads(numThreads)
 	threadFunc(propertyIndex, segmentLength, numSegments, c0, c1, c2, S, &Stail, &segmentsThatSatisfy);
 
+	printf("\n%d\n", segmentsThatSatisfy);
+
 	// Output the results; both to the terminal and the text file "out.txt"
 	FILE *outFile = fopen("out.txt", "w");
 	fprintf(outFile, "%s\n%d\n", S, segmentsThatSatisfy);
-	fprintf(stdout,  "%s\n%d\n", S, segmentsThatSatisfy);
 	fclose(outFile);
 
-	int i;
+	//~ int i;
 
-	for (i = 0; i < numSegments; i++)
-	{
-		fprintf(stderr, "Segment %d has the following character counts:\n", i);
-		fprintf(stderr, "c0: %d\nc1: %d\nc2: %d\nOther: %d\n\n", numc0[i], numc1[i], numc2[i], numNC[i]);
-	}
+	//~ for (i = 0; i < numSegments; i++)
+	//~ {
+		//~ fprintf(stderr, "Segment %d has the following character counts:\n", i);
+		//~ fprintf(stderr, "c0: %d\nc1: %d\nc2: %d\nOther: %d\n\n", numc0[i], numc1[i], numc2[i], numNC[i]);
+	//~ }
 
 	free(numc0);
 	free(numc1);
