@@ -1,26 +1,16 @@
 SHELL = /bin/sh
 
 CC = gcc
-CFLAGS = -Wall -fopenmp
+CFLAGS = -Wall
 LDFLAGS =
-EXEC = pa3.x
-SOURCES = pa3.c
-OBJECTS = $(SOURCES:%.c=%.o)
+EXECS = client server_append server_verify
 
-.PHONY: all objects clean
+.PHONY: all clean
 
-all: $(EXEC)
+all: $(EXECS)
 
-objects: $(OBJECTS)
-
-#*.c: *.h
-#	touch $@
-
-$(EXEC): $(OBJECTS)
+$(EXECS): %: %.c
 	$(CC) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
-%.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
 clean:
-	rm -f $(OBJECTS) $(EXEC) out.txt
+	rm -f $(EXECS) out.txt
