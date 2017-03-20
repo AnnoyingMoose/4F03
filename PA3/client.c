@@ -84,12 +84,46 @@ int isPossibleWithoutNC(int propertyIndex, int segmentLength, int nc0, int nc1, 
 	return 0;
 }
 
+// gets the segment from the verify server and checks to see if it satisfies the property
+void verifySegment(int propertyIndex, int segmentLength, int numSegments, char c0, char c1, char c2, char *S, int *Stail, int *segmentsThatSatisfy){
+	int i, j, segSt;
+	// Property check phase
+	for (i = 0; i < numSegments / omp_get_num_threads(); ++i)
+	{
+		// Determine the starting index of the current segment
+		segSt = segmentLength * (i * omp_get_num_threads() + omp_get_thread_num());
+
+		// Verify the selected property
+
+		int count[3] = {0, 0, 0};
+
+		for (j = 0; j < segmentLength; ++j)
+		{
+			char c = S[segSt+j];
+
+			if (c == c0) ++count[0];
+			if (c == c1) ++count[1];
+			if (c == c2) ++count[2];
+		}
+
+		if (property(propertyIndex, count[0], count[1], count[2]))
+		{
+			// The current segment satisfies the given condition; increment the counter
+			// Also make sure no-one else is trying to do so at the same time
+
+			#pragma omp atomic
+			++(*segmentsThatSatisfy);
+		}
+	}
+
+}
+
 void threadFunc(int propertyIndex, int segmentLength, int numSegments, char c0, char c1, char c2, char *S, int *Stail, int *segmentsThatSatisfy)
 {
 	char chr = 'a' + omp_get_thread_num();
 	unsigned int rseed = (unsigned int)omp_get_thread_num();
 	struct timespec sleepDuration = {0, 0};
-	int i, j, segSt, segCurr;
+	int segCurr;
 
 	// Construction phase
 
@@ -130,66 +164,8 @@ void threadFunc(int propertyIndex, int segmentLength, int numSegments, char c0, 
 			}
 		}
 	}
-
-	// Property check phase
-
-	for (i = 0; i < numSegments / omp_get_num_threads(); ++i)
-	{
-		// Determine the starting index of the current segment
-		segSt = segmentLength * (i * omp_get_num_threads() + omp_get_thread_num());
-
-		// Verify the selected property
-
-		int count[3] = {0, 0, 0};
-
-		for (j = 0; j < segmentLength; ++j)
-		{
-			char c = S[segSt+j];
-
-			if (c == c0) ++count[0];
-			if (c == c1) ++count[1];
-			if (c == c2) ++count[2];
-		}
-
-		if (property(propertyIndex, count[0], count[1], count[2]))
-		{
-			// The current segment satisfies the given condition; increment the counter
-			// Also make sure no-one else is trying to do so at the same time
-
-			#pragma omp atomic
-			++(*segmentsThatSatisfy);
-		}
-	}
-
 	//~ fprintf(stderr, "Thread %d finished.\n", omp_get_thread_num());
 }
-
-// threads call this to try and append a character
-int RPC_Append(char c){
-	// return 0 if appending success
-	return 0;
-	// return -1 if S is complete
-}
-
-// threads call this on the verify server to retrieve a segment to verify
-char** RPC_GetSeg(int seg){
-	char** string = "temp";
-	return string;
-}
-
-
-// initialize the append server, sending in required parameters
-void RPC_InitAppendServer(int propertyIndex, int segmentLength, int numSegments, char c0, char c1, char c2, char hostName[]){
-	// self setup
-}
-
-// initialize the verify server, sending in required parameters
-void RPC_InitVerifyServer(int numThreads, int segmentLength, int numSegments){
-	// self setup
-	
-	// initialize UDP socket to recieve S from append server
-}
-
 
 int main(int argc, char ** argv)
 {
@@ -258,8 +234,8 @@ int main(int argc, char ** argv)
 	//~ fprintf(stderr, "Starting...\n");
 	
 	// call to setup the servers
-	RPC_InitAppendServer(propertyIndex, segmentLength, numSegments, c0, c1, c2, hostName2);
-	RPC_InitVerifyServer(numThreads, segmentLength, numSegments);
+	//RPC_InitAppendServer(propertyIndex, segmentLength, numSegments, c0, c1, c2, hostName2);
+	//RPC_InitVerifyServer(numThreads, segmentLength, numSegments);
 
 	#pragma omp parallel num_threads(numThreads)
 	threadFunc(propertyIndex, segmentLength, numSegments, c0, c1, c2, S, &Stail, &segmentsThatSatisfy);
