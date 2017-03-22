@@ -1,6 +1,6 @@
 /*
  * server_verify.c
- * -----
+ * ---------------
  *
  * For SFWR ENG 4F03 PA3 (Winter 2017)
  *
@@ -45,7 +45,7 @@ void RPC_InitVerifyServer(int N, int L, int M){
 	serv_addr.sin_addr.s_addr = INADDR_ANY;
 	serv_addr.sin_port = htons(portno);
 	int status = bind(sockid, (struct sockaddr *) &serv_addr, sizeof(serv_addr));
-	if (status < 0){ 
+	if (status < 0){
 		fprintf(stderr,"Could not bind\n");
 		exit(1);
 	}
@@ -64,8 +64,8 @@ void RPC_InitVerifyServer(int N, int L, int M){
 	}
 	printf("Here is the message: %s\n",buffer);
 	completedString = buffer;
-	return 0; 
-	
+	return 0;
+
 	// initialize UDP socket to recieve S from append server
 }
 

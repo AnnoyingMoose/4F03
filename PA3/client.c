@@ -1,6 +1,6 @@
 /*
- * pa3.c
- * -----
+ * client.c
+ * --------
  *
  * For SFWR ENG 4F03 PA3 (Winter 2017)
  *
@@ -193,7 +193,7 @@ int main(int argc, char ** argv)
 		c0 = argv[5][0],
 		c1 = argv[6][0],
 		c2 = argv[7][0];
-		
+
 	char * hostName1 = argv[8];
 	char * hostName2 = argv[9];
 
@@ -232,7 +232,7 @@ int main(int argc, char ** argv)
 	numNC = calloc(numSegments, sizeof(int));
 
 	//~ fprintf(stderr, "Starting...\n");
-	
+
 	// call to setup the servers
 	//RPC_InitAppendServer(propertyIndex, segmentLength, numSegments, c0, c1, c2, hostName2);
 	//RPC_InitVerifyServer(numThreads, segmentLength, numSegments);

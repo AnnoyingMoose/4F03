@@ -1,6 +1,6 @@
 /*
- * pa3.c
- * -----
+ * server_append.c
+ * ---------------
  *
  * For SFWR ENG 4F03 PA3 (Winter 2017)
  *
@@ -49,7 +49,7 @@ void RPC_InitAppendServer(int propertyIndex, int segmentLength, int numSegments,
     }
     bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, 
+    bcopy((char *)server->h_addr,
          (char *)&serv_addr.sin_addr.s_addr,
          server->h_length);
     serv_addr.sin_port = htons(portno);
@@ -67,7 +67,7 @@ void RPC_InitAppendServer(int propertyIndex, int segmentLength, int numSegments,
 		exit(1);
 	}
     return 0;
-	
+
 }
 
 int main(int argc, char ** argv)
