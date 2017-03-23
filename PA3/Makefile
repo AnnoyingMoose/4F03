@@ -50,4 +50,4 @@ server_%_svc.c server_%_clnt.c server_%.h: server_%.x
 	rpcgen $<
 
 clean:
-	rm -f $(EXECS) $(OBJECTS) out.txt
+	rm -f $(EXECS) $(OBJECTS) server_*_*.c server_*.h out.txt

@@ -11,14 +11,14 @@
 #include "server_append.h"
 #include "property.h"
 
-int *rpc_append_1(char *c, struct svc_req *req)
+int *rpc_append_1_svc(char *c, struct svc_req *req)
 {
 	// TODO
 	return NULL;
 }
 
-void rpc_initappendserver_1(char **args, struct svc_req *req)
+void *rpc_initappendserver_1_svc(char **args, struct svc_req *req)
 {
 	// TODO
-	return;
+	return NULL;
 }

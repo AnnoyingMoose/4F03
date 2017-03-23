@@ -181,7 +181,7 @@ int main(int argc, char **argv)
 
 	// Output the results; both to the terminal and the text file "out.txt"
 	FILE *outFile = fopen("out.txt", "w");
-	fprintf(outFile, "%s\n%d\n", *rpc_getstring_1(vcl), segmentsThatSatisfy);
+	fprintf(outFile, "%s\n%d\n", *rpc_getstring_1(NULL, vcl), segmentsThatSatisfy);
 	fclose(outFile);
 
 	//~ int i;

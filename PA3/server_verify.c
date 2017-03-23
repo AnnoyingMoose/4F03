@@ -10,15 +10,21 @@
 
 #include "server_verify.h"
 
-char **rpc_getseg_1(int *tid, struct svc_req *req)
+char **rpc_getseg_1_svc(int *tid, struct svc_req *req)
+{
+	// TODO
+	return NULL;
+}
+
+char **rpc_getstring_1_svc(void *arg, struct svc_req *req)
 {
 	// TODO
 	return NULL;
 }
 
 // initialize the verify server, sending in required parameters
-void rpc_initverifyserver_1(char **args, struct svc_req *req)
+void *rpc_initverifyserver_1_svc(char **args, struct svc_req *req)
 {
 	// TODO
-	return;
+	return NULL;
 }
