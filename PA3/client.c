@@ -9,6 +9,8 @@
  */
 
 #include "property.h"
+#include "server_append.h"
+#include "server_verify.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -21,14 +23,35 @@
 #define omp_get_num_threads() 1
 #endif
 
+CLIENT *acl, *vcl;
 int segmentsThatSatisfy = 0; // Number of segments that have the selected property
+
+void InitAppendServer(int propertyIndex, int segmentLength, int numSegments, char c0, char c1, char c2, char *verifyHost)
+{
+	char marshal[strlen(verifyHost) + 6];
+	marshal[0] = (char)propertyIndex;
+	marshal[1] = (char)segmentLength;
+	marshal[2] = (char)numSegments;
+	marshal[3] = c0;
+	marshal[4] = c1;
+	marshal[5] = c2;
+	strcpy(marshal+6, verifyHost);
+
+	rpc_initappendserver_1(&marshal, acl);
+}
+
+void InitVerifyServer(int numThreads, int segmentLength, int numSegments)
+{
+	char marshal[3] = {(char)numThreads, (char)segmentLength, (char)numSegments};
+	rpc_initverifyserver_1(&marshal, vcl);
+}
 
 void constructAndVerify(int propertyIndex, int segmentLength, char c0, char c1, char c2)
 {
 	char chr = 'a' + omp_get_thread_num();
 	unsigned int rseed = (unsigned int)omp_get_thread_num();
 	struct timespec sleepDuration = {0, 0};
-	int i, lastAppend, localGoodSegments;
+	int i, lastAppend, localGoodSegments, tid = omp_get_thread_num();
 	char *segment;
 
 	// Construction phase
@@ -39,7 +62,7 @@ void constructAndVerify(int propertyIndex, int segmentLength, char c0, char c1, 
 		sleepDuration.tv_nsec = (long int)(100000000.0 + rand_r(&rseed) * 400000000.0 / RAND_MAX);
 		nanosleep(&sleepDuration, NULL);
 
-		lastAppend = RPC_Append(chr);
+		lastAppend = *rpc_append_1(&chr, acl);
 	}
 	while (lastAppend == 0);
 
@@ -47,7 +70,7 @@ void constructAndVerify(int propertyIndex, int segmentLength, char c0, char c1, 
 
 	while (1)
 	{
-		segment = RPC_GetSeg(omp_get_thread_num());
+		segment = *rpc_getseg_1(&tid, vcl);
 
 		if (segment == NULL || segment[0] == '-') break;
 
@@ -121,8 +144,8 @@ int main(int argc, char **argv)
 	if   (numSegments < 0)   numSegments = -numSegments;
 
 	if (numThreads == 3 ?
-	    !isPossibleWithoutNC(propertyIndex, segmentLength, 0, 0, 0) :
-	    !isPossible         (propertyIndex, segmentLength, 0, 0, 0, 0))
+	   !isPossibleWithoutNC(propertyIndex, segmentLength, 0, 0, 0) :
+	   !isPossible         (propertyIndex, segmentLength, 0, 0, 0, 0))
 	{
 		fprintf(stderr, "Error: selected property not possible for selected segment length.\n");
 		exit(1);
@@ -130,9 +153,26 @@ int main(int argc, char **argv)
 
 	//~ fprintf(stderr, "Starting...\n");
 
-	// Notify servers that we need... service...
-	RPC_InitAppendServer(propertyIndex, segmentLength, numSegments, c0, c1, c2, hostName2);
-	RPC_InitVerifyServer(numThreads, segmentLength, numSegments);
+	// Create client objects
+	acl = clnt_create(appendHost, APPENDPROG, APPENDVERS, "tcp");
+
+	if (acl == NULL)
+	{
+		fprintf(stderr, "Failed to contact Append server.\n");
+		exit(2);
+	}
+
+	vcl = clnt_create(verifyHost, VERIFYPROG, VERIFYVERS, "tcp");
+
+	if (vcl == NULL)
+	{
+		fprintf(stderr, "Failed to contact Verify server.\n");
+		exit(2);
+	}
+
+	// Send initialization signals to servers
+	InitAppendServer(propertyIndex, segmentLength, numSegments, c0, c1, c2, verifyHost);
+	InitVerifyServer(numThreads, segmentLength, numSegments);
 
 	#pragma omp parallel num_threads(numThreads)
 	constructAndVerify(propertyIndex, segmentLength, c0, c1, c2);
@@ -141,7 +181,7 @@ int main(int argc, char **argv)
 
 	// Output the results; both to the terminal and the text file "out.txt"
 	FILE *outFile = fopen("out.txt", "w");
-	fprintf(outFile, "%s\n%d\n", RPC_GetString(), segmentsThatSatisfy);
+	fprintf(outFile, "%s\n%d\n", *rpc_getstring_1(vcl), segmentsThatSatisfy);
 	fclose(outFile);
 
 	//~ int i;
