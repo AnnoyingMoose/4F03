@@ -12,7 +12,7 @@ SHELL = /bin/sh
 
 CC = gcc
 CFLAGS = -Wall -fopenmp
-LDFLAGS =
+LDFLAGS = -lnsl
 EXECS = client server_append server_verify
 
 SOURCES =                \
