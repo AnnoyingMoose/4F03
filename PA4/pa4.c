@@ -8,3 +8,19 @@
  *
  * for SFWR ENG 4F03 PA4 (Winter 2017)
  */
+
+#include <stdlib.h>
+#include <stdio.h>
+
+#include "blur.h"
+
+int main(int argc, char **argv)
+{
+	if (argc < 2)
+	{
+		fprintf(stderr, "No image specified\n");
+		exit(1);
+	}
+
+	// ...
+}
