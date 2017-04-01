@@ -26,22 +26,29 @@
 CLIENT *acl, *vcl;
 int segmentsThatSatisfy = 0; // Number of segments that have the selected property
 
-void InitAppendServer(int propertyIndex, int segmentLength, int numSegments, char c0, char c1, char c2, char *verifyHost)
+void InitAppendServer(int propertyIndex, int numThreads, int numSegments, int segmentLength, char c0, char c1, char c2, char *verifyHost)
 {
-	char marshal[strlen(verifyHost) + 6];
+	// Marshal parameters
+	char marshal[strlen(verifyHost) + 7];
+
+	// These are technically each 4 bytes, but are
+	// guaranteed to have values in [0, 127], so...
 	marshal[0] = (char)propertyIndex;
-	marshal[1] = (char)segmentLength;
+	marshal[1] = (char)numThreads;
 	marshal[2] = (char)numSegments;
-	marshal[3] = c0;
-	marshal[4] = c1;
-	marshal[5] = c2;
-	strcpy(marshal+6, verifyHost);
+	marshal[3] = (char)segmentLength;
+
+	marshal[4] = c0;
+	marshal[5] = c1;
+	marshal[6] = c2;
+	strcpy(marshal + 7, verifyHost);
 
 	rpc_initappendserver_1(&marshal, acl);
 }
 
 void InitVerifyServer(int numThreads, int segmentLength, int numSegments)
 {
+	// Same as above
 	char marshal[3] = {(char)numThreads, (char)segmentLength, (char)numSegments};
 	rpc_initverifyserver_1(&marshal, vcl);
 }
@@ -62,6 +69,7 @@ void constructAndVerify(int propertyIndex, int segmentLength, char c0, char c1, 
 		sleepDuration.tv_nsec = (long int)(100000000.0 + rand_r(&rseed) * 400000000.0 / RAND_MAX);
 		nanosleep(&sleepDuration, NULL);
 
+		#pragma omp critical
 		lastAppend = *rpc_append_1(&chr, acl);
 	}
 	while (lastAppend == 0);
@@ -115,17 +123,18 @@ int main(int argc, char **argv)
 	}
 
 	int
-		propertyIndex = atoi(argv[1]),
-		numThreads    = atoi(argv[2]),
-		segmentLength = atoi(argv[3]),
-		numSegments   = atoi(argv[4]);
+		propertyIndex = strtol(argv[1]),
+		numThreads    = strtol(argv[2]),
+		segmentLength = strtol(argv[3]),
+		numSegments   = strtol(argv[4]);
 
 	char
 		c0 = argv[5][0],
 		c1 = argv[6][0],
 		c2 = argv[7][0],
 		*appendHost = argv[8],
-		*verifyHost = argv[9];
+		*verifyHost = argv[9],
+		*finishedString;
 
 	if (propertyIndex < 0 || propertyIndex > 3)
 	{
@@ -139,21 +148,30 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	// We'll assume any non-negative values for L and M are valid
-	if (segmentLength < 0) segmentLength = -segmentLength;
-	if   (numSegments < 0)   numSegments = -numSegments;
+	if (segmentLength < 0 || segmentLength >= 1 << 7)
+	{
+		fprintf(stderr, "Error: segment length must be in the range [0, 2^7) (got %d)\n", segmentLength);
+		exit(1);
+	}
+
+	if (numSegments < 0 || segmentLength >= 1 << 7)
+	{
+		fprintf(stderr, "Error: number of segments must be in the range [0, 2^7) (got %d)\n", numSegments);
+		exit(1);
+	}
 
 	if (numThreads == 3 ?
 	   !isPossibleWithoutNC(propertyIndex, segmentLength, 0, 0, 0) :
 	   !isPossible         (propertyIndex, segmentLength, 0, 0, 0, 0))
 	{
-		fprintf(stderr, "Error: selected property not possible for selected segment length.\n");
+		fprintf(stderr, "Error: selected property not possible for segment length %d.\n", segmentLength);
 		exit(1);
 	}
 
 	//~ fprintf(stderr, "Starting...\n");
 
 	// Create client objects
+
 	acl = clnt_create(appendHost, APPENDPROG, APPENDVERS, "tcp");
 
 	if (acl == NULL)
@@ -177,11 +195,13 @@ int main(int argc, char **argv)
 	#pragma omp parallel num_threads(numThreads)
 	constructAndVerify(propertyIndex, segmentLength, c0, c1, c2);
 
-	printf("\n%d\n", segmentsThatSatisfy);
+	finishedString = *rpc_getstring_1(NULL, vcl);
 
 	// Output the results; both to the terminal and the text file "out.txt"
+
 	FILE *outFile = fopen("out.txt", "w");
-	fprintf(outFile, "%s\n%d\n", *rpc_getstring_1(NULL, vcl), segmentsThatSatisfy);
+	fprintf(stdout,  "%s\n%d\n", finishedString, segmentsThatSatisfy);
+	fprintf(outFile, "%s\n%d\n", finishedString, segmentsThatSatisfy);
 	fclose(outFile);
 
 	//~ int i;

@@ -24,6 +24,19 @@
 int property(int index, int nc0, int nc1, int nc2);
 
 /**
+ * Check if a property can be satisfied for a segment using only critical characters.
+ *
+ * @param propertyIndex: The index of the property to check
+ * @param segmentLength: The length of the segment
+ * @param nc0: The number of character c0 already in the segment
+ * @param nc1: The number of character c1 already in the segment
+ * @param nc2: The number of character c2 already in the segment
+ *
+ * @return 1 if the property may yet be satisfied; 0 otherwise
+ */
+int isPossible(int propertyIndex, int segmentLength, int nc0, int nc1, int nc2);
+
+/**
  * Check if a property can be satisfied for a segment.
  *
  * @param propertyIndex: The index of the property to check
@@ -35,19 +48,6 @@ int property(int index, int nc0, int nc1, int nc2);
  *
  * @return 1 if the property may yet be satisfied; 0 otherwise
  */
-int isPossible(int propertyIndex, int segmentLength, int nc0, int nc1, int nc2, int noncrit);
-
-/**
- * Check if a property can be satisfied for a segment using only critical characters.
- *
- * @param propertyIndex: The index of the property to check
- * @param segmentLength: The length of the segment
- * @param nc0: The number of character c0 already in the segment
- * @param nc1: The number of character c1 already in the segment
- * @param nc2: The number of character c2 already in the segment
- *
- * @return 1 if the property may yet be satisfied; 0 otherwise
- */
-int isPossibleWithoutNC(int propertyIndex, int segmentLength, int nc0, int nc1, int nc2);
+int isPossibleNC(int propertyIndex, int segmentLength, int nc0, int nc1, int nc2, int noncrit);
 
 #endif
