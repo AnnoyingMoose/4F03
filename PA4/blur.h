@@ -16,7 +16,25 @@
 
 #include "image.h"
 
+/**
+ * Generates a square-blur-filtered version of the pixel at the given co-ordinates in a bitmap image.
+ *
+ * @param image The bitmap image
+ * @param x     The x co-ordinate of the pixel
+ * @param y     The y co-ordinate of the pixel
+ * @param rad   The radius of the blur filter
+ *
+ * @returns The processed pixel
+ */
 pixel blurPixel(bm_image *image, int x, int y, int rad);
+
+/**
+ * Filters an entire bitmap image using a square-blur (low-pass) filter.
+ *
+ * @param srcImage The image to process
+ * @param dstImage The storage location for the processed image (must have the same dimensions as srcImage)
+ * @param rad      The radius of the blur filter
+ */
 void blurImage(bm_image *srcImage, bm_image *dstImage, int rad);
 
 #endif
