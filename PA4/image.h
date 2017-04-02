@@ -25,4 +25,16 @@ typedef struct
 	pixel *pixels;
 } bm_image;
 
+#define pixel_at(im, x, y) im->pixels[x * im->height + y]
+
+#define chan_r(p) ((p & 0x00FF0000) >> 16)
+#define chan_g(p) ((p & 0x0000FF00) >>  8)
+#define chan_b(p) ((p & 0x000000FF) >>  0)
+
+#define chan_r_at(im, x, y) chan_r(pixel_at(im, x, y))
+#define chan_g_at(im, x, y) chan_g(pixel_at(im, x, y))
+#define chan_b_at(im, x, y) chan_b(pixel_at(im, x, y))
+
+#define buildPixel(r, g, b) (((pixel)r << 16) | ((pixel)g << 8) | (pixel)b)
+
 #endif

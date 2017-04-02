@@ -16,7 +16,7 @@
 
 #include "image.h"
 
-pixel blurPixel(bm_image *image, int x, int y, int r);
-void blurImage(bm_image *srcImage, bm_image *dstImage, int r);
+pixel blurPixel(bm_image *image, int x, int y, int rad);
+void blurImage(bm_image *srcImage, bm_image *dstImage, int rad);
 
 #endif
