@@ -11,3 +11,12 @@
  * for SFWR ENG 4F03 PA4 (Winter 2017)
  */
 
+#include "blur.h"
+
+pixel blurPixel(bm_image *image, int x, int y, int r)
+{
+}
+
+void blurImage(bm_image *srcImage, bm_image *dstImage, int r)
+{
+}
