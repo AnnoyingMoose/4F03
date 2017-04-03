@@ -15,7 +15,6 @@
 #define BLUR_H
 
 #include "ppmFile.h"
-#include "ppm-ext.h"
 
 /**
  * Generates a square-blur-filtered version of the pixel at the given co-ordinates in a bitmap image.

@@ -13,7 +13,7 @@
 
 #include "blur.h"
 
-void blurPixel(Image *srcImage, Image *dstImage, int rad, int x, int y);
+void blurPixel(Image *srcImage, Image *dstImage, int rad, int x, int y)
 {
 	unsigned long int
 		pixel[3];
