@@ -16,7 +16,7 @@
 void blurPixel(Image *srcImage, Image *dstImage, int rad, int x, int y)
 {
 	unsigned long int
-		pixel[3];
+		pixel[3] = {0, 0, 0};
 	int
 		i, j, k,
 		xmin = x - rad,
@@ -30,7 +30,7 @@ void blurPixel(Image *srcImage, Image *dstImage, int rad, int x, int y)
 	if (xmax >= srcImage->width)  xmax = srcImage->width  - 1;
 	if (ymax >= srcImage->height) ymax = srcImage->height - 1;
 
-	blurAreaSize = (xmax - xmin) * (ymax - ymin);
+	blurAreaSize = (xmax - xmin + 1) * (ymax - ymin + 1);
 
 	for (j = ymin; j <= ymax; j++)
 	for (i = xmin; i <= xmax; i++)
