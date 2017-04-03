@@ -13,12 +13,12 @@
 
 #include "blur.h"
 
-pixel blurPixel(bm_image *image, int x, int y, int rad)
+void blurPixel(Image *srcImage, Image *dstImage, int rad, int x, int y);
 {
 	unsigned long int
-		r = 0, g = 0, b = 0;
+		pixel[3];
 	int
-		i, j,
+		i, j, k,
 		xmin = x - rad,
 		xmax = x + rad,
 		ymin = y - rad,
@@ -27,33 +27,29 @@ pixel blurPixel(bm_image *image, int x, int y, int rad)
 
 	if (xmin < 0) xmin = 0;
 	if (ymin < 0) ymin = 0;
-	if (xmax >= image->width)  xmax = image->width  - 1;
-	if (ymax >= image->height) ymax = image->height - 1;
+	if (xmax >= srcImage->width)  xmax = srcImage->width  - 1;
+	if (ymax >= srcImage->height) ymax = srcImage->height - 1;
 
 	blurAreaSize = (xmax - xmin) * (ymax - ymin);
 
-	for (i = xmin; i <= xmax; i++)
 	for (j = ymin; j <= ymax; j++)
+	for (i = xmin; i <= xmax; i++)
+	for (k = 0; k < 3; k++)
 	{
-		r += chan_r_at(image, i, j);
-		g += chan_g_at(image, i, j);
-		b += chan_b_at(image, i, j);
+		pixel[k] += ImageGetPixel(srcImage, i, j, k);
 	}
 
-	r /= blurAreaSize;
-	g /= blurAreaSize;
-	b /= blurAreaSize;
-
-	return buildPixel(r, g, b);
+	for (k = 0; k < 3; k++)
+		ImageSetPixel(dstImage, x, y, k, (unsigned char)(pixel[k] / blurAreaSize));
 }
 
-void blurImage(bm_image *srcImage, bm_image *dstImage, int rad)
+void blurImage(Image *srcImage, Image *dstImage, int rad)
 {
 	int i, j;
 
-	for (i = 0; i < srcImage->width;  i++)
 	for (j = 0; j < srcImage->height; j++)
+	for (i = 0; i < srcImage->width;  i++)
 	{
-		pixel_at(dstImage, i, j) = blurPixel(srcImage, i, j, rad);
+		blurPixel(srcImage, dstImage, rad, i, j);
 	}
 }

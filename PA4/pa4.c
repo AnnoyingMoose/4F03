@@ -11,16 +11,22 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <mpi.h>
 
 #include "blur.h"
 
 int main(int argc, char **argv)
 {
-	if (argc < 2)
+	MPI_Init(&argc, &argv);
+	atexit(MPI_Finalize);
+
+	if (argc < 4)
 	{
-		fprintf(stderr, "No image specified\n");
+		fprintf(stderr, "Usage: %s radius source dest\n", argv[0]);
 		exit(1);
 	}
 
 	// ...
+
+	return 0;
 }

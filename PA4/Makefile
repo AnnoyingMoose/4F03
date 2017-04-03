@@ -4,7 +4,7 @@ CC = mpicc
 CFLAGS = -Wall
 LDFLAGS =
 EXEC = pa4.x
-SRCS = pa4.c blur.c
+SRCS = pa4.c blur.c ppmFile.c
 
 .PHONY: all clean
 

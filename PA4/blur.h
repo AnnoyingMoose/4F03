@@ -14,27 +14,27 @@
 #ifndef BLUR_H
 #define BLUR_H
 
-#include "image.h"
+#include "ppmFile.h"
+#include "ppm-ext.h"
 
 /**
  * Generates a square-blur-filtered version of the pixel at the given co-ordinates in a bitmap image.
  *
- * @param image The bitmap image
+ * @param srcImage The source (original) image
+ * @param dstImage The destination image (where the blurred pixel should be stored)
+ * @param rad   The radius of the blur filter
  * @param x     The x co-ordinate of the pixel
  * @param y     The y co-ordinate of the pixel
- * @param rad   The radius of the blur filter
- *
- * @returns The processed pixel
  */
-pixel blurPixel(bm_image *image, int x, int y, int rad);
+void blurPixel(Image *srcImage, Image *dstImage, int rad, int x, int y);
 
 /**
  * Filters an entire bitmap image using a square-blur (low-pass) filter.
  *
- * @param srcImage The image to process
- * @param dstImage The storage location for the processed image (must have the same dimensions as srcImage)
- * @param rad      The radius of the blur filter
+ * @param srcImage The source (original) image
+ * @param dstImage The destination image
+ * @param rad   The radius of the blur filter
  */
-void blurImage(bm_image *srcImage, bm_image *dstImage, int rad);
+void blurImage(Image *srcImage, Image *dstImage, int rad);
 
 #endif
