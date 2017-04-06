@@ -12,18 +12,24 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <mpi.h>
+#include <time.h>
 
 #include "ppmFile.h"
 #include "blur.h"
 
 int main(int argc, char **argv)
 {
-	int myRank = 0;
+	clock_t timerStart = clock(), diff;
+	
+	int myRank = 0, numProcesses = 1, source;
+	double totalTime;
 
 	MPI_Init(&argc, &argv);
 	atexit((void(*)(void))MPI_Finalize);
 
 	MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
+	MPI_Comm_size(MPI_COMM_WORLD, &numProcesses);
+
 
 	if (argc < 4)
 	{
@@ -44,5 +50,19 @@ int main(int argc, char **argv)
 	if (myRank == 0)
 		ImageWrite(dstImage, argv[3]);
 
+	diff = clock() - timerStart;
+	int msec = diff * 1000 / CLOCKS_PER_SEC;
+
+	if (myRank != 0){
+		MPI_Send(&msec, 1, MPI_INTEGER, 0, 0, MPI_COMM_WORLD);	
+	}
+	else{
+		totalTime = msec;
+		for(source = 1; source < numProcesses; source++){
+			MPI_Recv(&msec, 1, MPI_INTEGER, source, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			totalTime += msec;
+		}
+		fprintf(stderr, "Average time taken was %f milliseconds\n", totalTime/numProcesses); 
+	}
 	return 0;
 }
