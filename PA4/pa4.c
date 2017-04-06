@@ -41,7 +41,8 @@ int main(int argc, char **argv)
 
 	blurImage(srcImage, dstImage, radius);
 
-	ImageWrite(dstImage, argv[3]);
+	if (myRank == 0)
+		ImageWrite(dstImage, argv[3]);
 
 	return 0;
 }

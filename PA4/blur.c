@@ -11,6 +11,8 @@
  * for SFWR ENG 4F03 PA4 (Winter 2017)
  */
 
+#include <mpi.h>
+
 #include "blur.h"
 
 void blurPixel(Image *srcImage, Image *dstImage, int rad, int x, int y)
@@ -57,5 +59,34 @@ void blurImage(Image *srcImage, Image *dstImage, int rad)
 	for (i = 0; i < srcImage->width; i++)
 	{
 		blurPixel(srcImage, dstImage, rad, i, j);
+	}
+
+	if (myRank == 0)
+	{
+		for (j = 1; j < dstImage->height; j++)
+		if (j % numProcesses > 0)
+		{
+			MPI_Recv(
+				(void*)(dstImage->data + j * dstImage->width * 3),
+				dstImage->width * 3,
+				MPI_UNSIGNED_CHAR,
+				j % numProcesses,
+				0,
+				MPI_COMM_WORLD,
+				NULL);
+		}
+	}
+	else
+	{
+		for (j = myRank; j < dstImage->height; j += numProcesses)
+		{
+			MPI_Ssend(
+				(void*)(dstImage->data + j * dstImage->width * 3),
+				dstImage->width * 3,
+				MPI_UNSIGNED_CHAR,
+				0,
+				0,
+				MPI_COMM_WORLD);
+		}
 	}
 }
