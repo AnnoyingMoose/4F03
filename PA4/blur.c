@@ -45,10 +45,16 @@ void blurPixel(Image *srcImage, Image *dstImage, int rad, int x, int y)
 
 void blurImage(Image *srcImage, Image *dstImage, int rad)
 {
-	int i, j;
+	int
+		i, j,
+		numProcesses = 1,
+		myRank = 0;
 
-	for (j = 0; j < srcImage->height; j++)
-	for (i = 0; i < srcImage->width;  i++)
+	MPI_Comm_size(MPI_COMM_WORLD, &numProcesses);
+	MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
+
+	for (j = myRank; j < srcImage->height; j += numProcesses)
+	for (i = 0; i < srcImage->width; i++)
 	{
 		blurPixel(srcImage, dstImage, rad, i, j);
 	}

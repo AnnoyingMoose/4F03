@@ -11,24 +11,23 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-//~ #include <mpi.h>
+#include <mpi.h>
 
 #include "ppmFile.h"
 #include "blur.h"
 
 int main(int argc, char **argv)
 {
-	int comm_sz = 1, my_rank = 0;
+	int myRank = 0;
 
-	//~ MPI_Init(&argc, &argv);
-	//~ atexit(MPI_Finalize);
+	MPI_Init(&argc, &argv);
+	atexit(MPI_Finalize);
 
-	//~ MPI_Comm_size(MPI_COMM_WORLD, &comm_sz);
-	//~ MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+	MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
 
 	if (argc < 4)
 	{
-		if (my_rank == 0)
+		if (myRank == 0)
 			fprintf(stderr, "Usage: mpirun -n <numProcesses> %s <radius> <sourceImage> <destImage>\n", argv[0]);
 
 		exit(1);
