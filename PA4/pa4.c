@@ -21,7 +21,7 @@ int main(int argc, char **argv)
 	int myRank = 0;
 
 	MPI_Init(&argc, &argv);
-	atexit(MPI_Finalize);
+	atexit((void(*)(void))MPI_Finalize);
 
 	MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
 

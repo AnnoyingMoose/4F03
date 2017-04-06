@@ -93,7 +93,7 @@ Image *
 ImageRead(char *filename)
 {
   int width, height, num, size;
-  unsigned  *p;
+  //~ unsigned  *p;
 
   Image *image = (Image *) malloc(sizeof(Image));
   FILE  *fp    = fopen(filename, "r");

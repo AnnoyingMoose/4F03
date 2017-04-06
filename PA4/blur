@@ -1,2 +1,2 @@
 #!/bin/sh
-mpiexec -n $1 ./pa4.x $2 $3 $4
+mpirun -np $1 ./pa4.x $2 $3 $4

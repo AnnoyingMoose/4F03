@@ -55,6 +55,7 @@ void blurImage(Image *srcImage, Image *dstImage, int rad)
 	MPI_Comm_size(MPI_COMM_WORLD, &numProcesses);
 	MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
 
+	// Blur the pixels in our assigned rows
 	for (j = myRank; j < srcImage->height; j += numProcesses)
 	for (i = 0; i < srcImage->width; i++)
 	{
@@ -63,6 +64,7 @@ void blurImage(Image *srcImage, Image *dstImage, int rad)
 
 	if (myRank == 0)
 	{
+		// Gather the blurred rows from the other processes
 		for (j = 1; j < dstImage->height; j++)
 		if (j % numProcesses > 0)
 		{
@@ -78,9 +80,10 @@ void blurImage(Image *srcImage, Image *dstImage, int rad)
 	}
 	else
 	{
+		// Send our blurred rows to the root process
 		for (j = myRank; j < dstImage->height; j += numProcesses)
 		{
-			MPI_Ssend(
+			MPI_Send(
 				(void*)(dstImage->data + j * dstImage->width * 3),
 				dstImage->width * 3,
 				MPI_UNSIGNED_CHAR,
