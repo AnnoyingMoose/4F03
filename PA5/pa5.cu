@@ -19,7 +19,7 @@ int main(int argc, char **argv)
 {
 	if (argc < 4)
 	{
-		fprintf(stderr, "Usage: %s <radius> <sourceImage> <destImage>\n", argv[0]);
+		printf("Usage: %s <radius> <sourceImage> <destImage>\n", argv[0]);
 		exit(1);
 	}
 

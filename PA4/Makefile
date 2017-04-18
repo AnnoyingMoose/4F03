@@ -1,6 +1,6 @@
 SHELL = /bin/sh
 
-CC = mpicc
+CC = gcc
 CFLAGS = -Wall
 LDFLAGS =
 EXEC = pa4.x
