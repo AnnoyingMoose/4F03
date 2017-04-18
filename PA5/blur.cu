@@ -1,6 +1,6 @@
 /*
  * blur.cu
- * ------
+ * -------
  *
  * Definitions for the blurPixel and blurImage functions.
  *
@@ -11,113 +11,86 @@
  * for SFWR ENG 4F03 PA5 (Winter 2017)
  */
 
+extern "C"
+{
 #include "blur.h"
+}
 
-#include <stdlib.h>
-#include <stdio.h>
+#include <assert.h>
 #include <cuda.h>
 
-__global__ void blurOnePixel(Image *srcImage, Image *dstImage, int rad)
+__device__ void blurPixel(int rad, int width, int height, char *src, char *dst, int x, int y)
 {
-	/*
-	int myIDx = blockIdx.x;
-	int myIDy = blockIdx.y;
-	printf("Hello world from x:%i, y:%i\n", myIDx, myIDy);
-	*/
-
-	int x = blockIdx.x;
-	int y = blockIdx.y;
-	unsigned long int
-		pixel[3] = {0, 0, 0};
 	int
-		i, j, k,
+		i, j,
 		xmin = x - rad,
 		xmax = x + rad,
 		ymin = y - rad,
 		ymax = y + rad,
 		blurAreaSize;
 
+	double red = 0;
+	double green = 0;
+	double blue = 0;
+	int fields_count = 0;
+
 	if (xmin < 0) xmin = 0;
 	if (ymin < 0) ymin = 0;
-	if (xmax >= srcImage->width)  xmax = srcImage->width  - 1;
-	if (ymax >= srcImage->height) ymax = srcImage->height - 1;
+	if (xmax >= width)  xmax = width  - 1;
+	if (ymax >= height) ymax = height - 1;
 
 	blurAreaSize = (xmax - xmin + 1) * (ymax - ymin + 1);
 
 	for (j = ymin; j <= ymax; j++)
 	for (i = xmin; i <= xmax; i++)
-	for (k = 0; k < 3; k++)
 	{
-		pixel[k] += GetPixel(srcImage, i, j, k);
+		int currentOffset = (x + i + j * blurAreaSize)*3;
+		red += src[currentOffset];
+		green += src[currentOffset+1];
+		blue += src[currentOffset+2];
+		fields_count++;
 	}
 
-	for (k = 0; k < 3; k++)
-		SetPixel(dstImage, x, y, k, (unsigned char)(pixel[k] / blurAreaSize));
+	dst[x*3] = red/fields_count;
+	dst[x*3+1] = green/fields_count;
+	dst[x*3+2] = blue/fields_count;
 }
 
-
-__host__ __device__ void
-SetPixel(Image *image, int x, int y, int chan, unsigned char val)
+__global__ void gpuBlurImage(int rad, int width, int height, char *src, char *dst)
 {
-	int offset = (y * image->width + x) * 3 + chan;
-
-	image->data[offset] = val;
-}
-
-
-__host__ __device__ unsigned  char
-GetPixel(Image *image, int x, int y, int chan)
-{
-	int offset = (y * image->width + x) * 3 + chan;
-
-	return image->data[offset];
-}
-
-
-void blurPixel(Image *srcImage, Image *dstImage, int rad, int x, int y)
-{
-	unsigned long int
-		pixel[3] = {0, 0, 0};
 	int
-		i, j, k,
-		xmin = x - rad,
-		xmax = x + rad,
-		ymin = y - rad,
-		ymax = y + rad,
-		blurAreaSize;
+		x = blockIdx.x * blockDim.x + threadIdx.x,
+		y = blockIdx.y * blockDim.y + threadIdx.y;
 
-	if (xmin < 0) xmin = 0;
-	if (ymin < 0) ymin = 0;
-	if (xmax >= srcImage->width)  xmax = srcImage->width  - 1;
-	if (ymax >= srcImage->height) ymax = srcImage->height - 1;
-
-	blurAreaSize = (xmax - xmin + 1) * (ymax - ymin + 1);
-
-	for (j = ymin; j <= ymax; j++)
-	for (i = xmin; i <= xmax; i++)
-	for (k = 0; k < 3; k++)
-	{
-		pixel[k] += ImageGetPixel(srcImage, i, j, k);
-	}
-
-	for (k = 0; k < 3; k++)
-		ImageSetPixel(dstImage, x, y, k, (unsigned char)(pixel[k] / blurAreaSize));
+	if (x < width && y < height)
+		blurPixel(rad, width, height, src, dst, x, y);
 }
 
-void blurImage(Image *srcImage, Image *dstImage, int rad)
+extern "C"
 {
-	/*
-	int i, j;
-
-	for (j = 0; j < srcImage->height; j++)
-	for (i = 0; i < srcImage->width;  i++)
+	void blurImage(Image *srcImage, Image *dstImage, int rad)
 	{
-		blurPixel(srcImage, dstImage, rad, i, j);
-	}
-	*/
+		int
+			width  = srcImage->width,
+			height = srcImage->height;
 
-	dim3 block(1, 1);
-	dim3 grid(srcImage->height, srcImage->width);
-	blurOnePixel<<<grid, block>>>(srcImage, dstImage, rad);
-	cudaDeviceSynchronize();
+		assert(width == dstImage->width && height == dstImage->height);
+
+		dim3 b(1, 1);
+		dim3 g(width, height);
+
+		size_t sz = width * height * 3;
+		char *src, *dst;
+
+		cudaMalloc(&src, sz);
+		cudaMalloc(&dst, sz);
+		cudaMemcpy(src, srcImage->data, sz, cudaMemcpyHostToDevice);
+
+		gpuBlurImage<<<g, b>>>(rad, width, height, src, dst);
+		cudaDeviceSynchronize();
+
+		cudaMemcpy(dstImage->data, dst, sz, cudaMemcpyDeviceToHost);
+		cudaFree(src);
+		cudaFree(dst);
+	}
 }

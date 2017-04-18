@@ -16,12 +16,6 @@
 
 #include "ppmFile.h"
 
-__global__ void blurOnePixel(Image *srcImage, Image *dstImage, int rad);
-
-__host__ __device__ void SetPixel(Image *image, int x, int y, int chan, unsigned char val);
-
-__host__ __device__ unsigned char GetPixel(Image *image, int x, int y, int chan);
-
 /**
  * Generates a square-blur-filtered version of the pixel at the given co-ordinates in a bitmap image.
  *
