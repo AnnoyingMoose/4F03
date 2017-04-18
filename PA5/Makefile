@@ -1,7 +1,7 @@
 SHELL = /bin/sh
 
 CC = nvcc
-CFLAGS = -Wall -arch=compute_30
+CFLAGS = -arch=compute_30
 LDFLAGS =
 EXEC = pa5.x
 SRCS = pa5.c blur.cu ppmFile.c

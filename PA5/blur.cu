@@ -11,7 +11,10 @@
  * for SFWR ENG 4F03 PA5 (Winter 2017)
  */
 
+extern "C"
+{
 #include "blur.h"
+}
 
 #include <assert.h>
 #include <cuda.h>
@@ -45,7 +48,7 @@ __device__ void blurPixel(int rad, int width, int height, char *src, char *dst, 
 
 	for (k = 0; k < 3; k++)
 		//~ ImageSetPixel(dstImage, x, y, k, (unsigned char)(pixel[k] / blurAreaSize));
-		dst[j * width * 3 + i * 3 + k] = (unsigned char)(pixel[k] / blurAreaSize);
+		dst[y * width * 3 + x * 3 + k] = (unsigned char)(pixel[k] / blurAreaSize);
 }
 
 __global__ void gpuBlurImage(int rad, int width, int height, char *src, char *dst)
@@ -58,28 +61,31 @@ __global__ void gpuBlurImage(int rad, int width, int height, char *src, char *ds
 		blurPixel(rad, width, height, src, dst, x, y);
 }
 
-void blurImage(Image *srcImage, Image *dstImage, int rad)
+extern "C"
 {
-	int
-		width  = srcImage->width,
-		height = srcImage->height;
+	void blurImage(Image *srcImage, Image *dstImage, int rad)
+	{
+		int
+			width  = srcImage->width,
+			height = srcImage->height;
 
-	assert(width == dstImage->width && height == dstImage->height);
+		assert(width == dstImage->width && height == dstImage->height);
 
-	dim3 b(32, 32, 1);
-	dim3 g(ceil(width / 32.0), ceil(height / 32.0), 1);
+		dim3 b(32, 32, 1);
+		dim3 g(ceil(width / 32.0), ceil(height / 32.0), 1);
 
-	size_t sz = width * height * 3;
-	char *src, *dst;
+		size_t sz = width * height * 3;
+		char *src, *dst;
 
-	cudaMalloc(&src, sz);
-	cudaMalloc(&dst, sz);
-	cudaMemcpy(src, srcImage->data, sz, cudaMemcpyHostToDevice);
+		cudaMalloc(&src, sz);
+		cudaMalloc(&dst, sz);
+		cudaMemcpy(src, srcImage->data, sz, cudaMemcpyHostToDevice);
 
-	gpuBlurImage<<<g, b>>>(rad, width, height, src, dst);
-	cudaDeviceSynchronize();
+		gpuBlurImage<<<g, b>>>(rad, width, height, src, dst);
+		cudaDeviceSynchronize();
 
-	cudaMemcpy(dstImage->data, dst, sz, cudaMemcpyDeviceToHost);
-	cudaFree(src);
-	cudaFree(dst);
+		cudaMemcpy(dstImage->data, dst, sz, cudaMemcpyDeviceToHost);
+		cudaFree(src);
+		cudaFree(dst);
+	}
 }
