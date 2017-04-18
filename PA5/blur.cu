@@ -50,16 +50,12 @@ __device__ void blurPixel(int rad, int width, int height, char *src, char *dst, 
 
 __global__ void gpuBlurImage(int rad, int width, int height, char *src, char *dst)
 {
-	int i, j, xmin, xmax, ymin, ymax;
+	int
+		x = blockIdx.x * blockDim.x + threadIdx.x,
+		y = blockIdx.y * blockDim.y + threadIdx.y;
 
-	// Flatten grid/block co-ordinates
-	tid =
-
-	for (j = 0; j < height; j++)
-	for (i = 0; i < width;  i++)
-	{
-		blurPixel(rad, width, height, src, dst, i, j);
-	}
+	if (x < width && y < height)
+		blurPixel(rad, width, height, src, dst, x, y);
 }
 
 void blurImage(Image *srcImage, Image *dstImage, int rad)
