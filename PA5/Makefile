@@ -1,10 +1,10 @@
 SHELL = /bin/sh
 
 CC = nvcc
-CFLAGS = -Wall
+CFLAGS = -Wall -arch=compute_30
 LDFLAGS =
 EXEC = pa5.x
-SRCS = pa5.c blur.c ppmFile.c
+SRCS = pa5.c blur.cu ppmFile.c
 
 .PHONY: all clean
 
