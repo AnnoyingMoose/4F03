@@ -19,7 +19,7 @@ extern "C"
 #include <assert.h>
 #include <cuda.h>
 
-__device__ void blurPixel(int rad, int width, int height, char *src, char *dst, int x, int y)
+__device__ void blurPixel(int rad, int width, int height, unsigned char *src, unsigned char *dst, int x, int y)
 {
 	unsigned long int
 		pixel[3] = {0, 0, 0};
@@ -41,17 +41,13 @@ __device__ void blurPixel(int rad, int width, int height, char *src, char *dst, 
 	for (j = ymin; j <= ymax; j++)
 	for (i = xmin; i <= xmax; i++)
 	for (k = 0; k < 3; k++)
-	{
-		//~ pixel[k] += ImageGetPixel(srcImage, i, j, k);
 		pixel[k] += src[j * width * 3 + i * 3 + k];
-	}
 
 	for (k = 0; k < 3; k++)
-		//~ ImageSetPixel(dstImage, x, y, k, (unsigned char)(pixel[k] / blurAreaSize));
 		dst[y * width * 3 + x * 3 + k] = (unsigned char)(pixel[k] / blurAreaSize);
 }
 
-__global__ void gpuBlurImage(int rad, int width, int height, char *src, char *dst)
+__global__ void gpuBlurImage(int rad, int width, int height, unsigned char *src, unsigned char *dst)
 {
 	int
 		x = blockIdx.x * blockDim.x + threadIdx.x,
@@ -75,7 +71,7 @@ extern "C"
 		dim3 g(ceil(width / 32.0), ceil(height / 32.0), 1);
 
 		size_t sz = width * height * 3;
-		char *src, *dst;
+		unsigned char *src, *dst;
 
 		cudaMalloc(&src, sz);
 		cudaMalloc(&dst, sz);
