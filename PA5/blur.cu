@@ -44,6 +44,7 @@ __device__ void blurPixel(int rad, int width, int height, unsigned char *src, un
 
 	for (j = ymin; j <= ymax; j++)
 	for (i = xmin; i <= xmax; i++)
+
 	for (k = 0; k < 3; k++)
 		pixel[k] += src[j * width * 3 + i * 3 + k];
 

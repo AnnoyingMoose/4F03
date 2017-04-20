@@ -177,7 +177,6 @@ ImageSetPixel(Image *image, int x, int y, int chan, unsigned char val)
   image->data[offset] = val;
 }
 
-
 unsigned  char
 ImageGetPixel(Image *image, int x, int y, int chan)
 {
