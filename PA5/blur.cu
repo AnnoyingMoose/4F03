@@ -19,6 +19,10 @@ extern "C"
 #include <assert.h>
 #include <cuda.h>
 
+const int
+	BLOCK_WIDTH = 32,
+	BLOCK_HEIGHT = 32;
+
 __device__ void blurPixel(int rad, int width, int height, unsigned char *src, unsigned char *dst, int x, int y)
 {
 	unsigned long int
@@ -67,8 +71,8 @@ extern "C"
 
 		assert(width == dstImage->width && height == dstImage->height);
 
-		dim3 b(32, 32, 1);
-		dim3 g(ceil(width / 32.0), ceil(height / 32.0), 1);
+		dim3 b(BLOCK_WIDTH, BLOCK_HEIGHT, 1);
+		dim3 g(ceil((double)width / BLOCK_WIDTH), ceil((double)height / BLOCK_HEIGHT), 1);
 
 		size_t sz = width * height * 3;
 		unsigned char *src, *dst;
