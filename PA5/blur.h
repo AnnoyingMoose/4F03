@@ -17,17 +17,6 @@
 #include "ppmFile.h"
 
 /**
- * Generates a square-blur-filtered version of the pixel at the given co-ordinates in a bitmap image.
- *
- * @param srcImage The source (original) image
- * @param dstImage The destination image (where the blurred pixel should be stored)
- * @param rad   The radius of the blur filter
- * @param x     The x co-ordinate of the pixel
- * @param y     The y co-ordinate of the pixel
- */
-void blurPixel(Image *srcImage, Image *dstImage, int rad, int x, int y);
-
-/**
  * Filters an entire bitmap image using a square-blur (low-pass) filter.
  *
  * @param srcImage The source (original) image

@@ -19,20 +19,21 @@ extern "C"
 #include <assert.h>
 #include <cuda.h>
 
-__device__ void blurPixel(int rad, int width, int height, char *src, char *dst, int x, int y)
+const int
+	BLOCK_WIDTH = 32,
+	BLOCK_HEIGHT = 32;
+
+__device__ void blurPixel(int rad, int width, int height, unsigned char *src, unsigned char *dst, int x, int y)
 {
+	unsigned long int
+		pixel[3] = {0, 0, 0};
 	int
-		i, j,
+		i, j, k,
 		xmin = x - rad,
 		xmax = x + rad,
 		ymin = y - rad,
 		ymax = y + rad,
 		blurAreaSize;
-
-	double red = 0;
-	double green = 0;
-	double blue = 0;
-	int fields_count = 0;
 
 	if (xmin < 0) xmin = 0;
 	if (ymin < 0) ymin = 0;
@@ -43,20 +44,15 @@ __device__ void blurPixel(int rad, int width, int height, char *src, char *dst, 
 
 	for (j = ymin; j <= ymax; j++)
 	for (i = xmin; i <= xmax; i++)
-	{
-		int currentOffset = (x + i + j * blurAreaSize)*3;
-		red += src[currentOffset];
-		green += src[currentOffset+1];
-		blue += src[currentOffset+2];
-		fields_count++;
-	}
 
-	dst[x*3] = red/fields_count;
-	dst[x*3+1] = green/fields_count;
-	dst[x*3+2] = blue/fields_count;
+	for (k = 0; k < 3; k++)
+		pixel[k] += src[j * width * 3 + i * 3 + k];
+
+	for (k = 0; k < 3; k++)
+		dst[y * width * 3 + x * 3 + k] = (unsigned char)(pixel[k] / blurAreaSize);
 }
 
-__global__ void gpuBlurImage(int rad, int width, int height, char *src, char *dst)
+__global__ void gpuBlurImage(int rad, int width, int height, unsigned char *src, unsigned char *dst)
 {
 	int
 		x = blockIdx.x * blockDim.x + threadIdx.x,
@@ -76,11 +72,11 @@ extern "C"
 
 		assert(width == dstImage->width && height == dstImage->height);
 
-		dim3 b(1, 1);
-		dim3 g(width, height);
+		dim3 b(BLOCK_WIDTH, BLOCK_HEIGHT, 1);
+		dim3 g(ceil((double)width / BLOCK_WIDTH), ceil((double)height / BLOCK_HEIGHT), 1);
 
 		size_t sz = width * height * 3;
-		char *src, *dst;
+		unsigned char *src, *dst;
 
 		cudaMalloc(&src, sz);
 		cudaMalloc(&dst, sz);
